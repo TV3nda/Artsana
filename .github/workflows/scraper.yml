@@ -1,0 +1,43 @@
+name: Wells Price Scraper
+
+on:
+  schedule:
+    - cron: '0 10 * * *'   # 10:00 UTC = 11:00 hora de Lisboa (verao)
+  workflow_dispatch:         # permite correr manualmente com um clique
+
+jobs:
+  scrape:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repositorio
+        uses: actions/checkout@v4
+
+      - name: Correr scraper
+        shell: powershell
+        run: |
+          powershell -NonInteractive -ExecutionPolicy Bypass `
+            -File scripts/wells_scraper.ps1 `
+            -OutputDir data
+
+      - name: Gerar dashboard
+        shell: powershell
+        run: |
+          powershell -NonInteractive -ExecutionPolicy Bypass `
+            -File scripts/gerar_dashboard.ps1 `
+            -DataDir data `
+            -DashboardOut index.html
+
+      - name: Guardar resultados no GitHub
+        shell: powershell
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/historico/wells_historico.csv index.html
+          git diff --staged --quiet
+          if ($LASTEXITCODE -eq 1) {
+            git commit -m "Scraper: $(Get-Date -Format 'yyyy-MM-dd')"
+            git push
+          } else {
+            Write-Host "Sem alteracoes para guardar."
+          }
