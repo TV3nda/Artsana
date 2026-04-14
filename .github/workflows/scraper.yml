@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: '0 10 * * *'   # 10:00 UTC = 11:00 hora de Lisboa (verao)
   workflow_dispatch:         # permite correr manualmente com um clique
+    inputs:
+      teste_email:
+        description: 'Enviar email de teste (true/false)'
+        default: 'false'
 
 jobs:
   scrape:
@@ -17,6 +21,7 @@ jobs:
         shell: powershell
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          TESTE_EMAIL: ${{ github.event.inputs.teste_email }}
         run: |
           powershell -NonInteractive -ExecutionPolicy Bypass `
             -File scripts/wells_scraper.ps1 `

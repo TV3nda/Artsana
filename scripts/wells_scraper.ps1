@@ -400,8 +400,14 @@ if ($resendKey) {
             }
         }
 
-        # Produtos de hoje que nao existiam antes
-        $novos = $allProducts | Where-Object { -not $idsConhecidos.ContainsKey($_.ProdID) }
+        # Modo de teste: forcar 3 produtos como "novos"
+        $modoTeste = $env:TESTE_EMAIL -eq "true"
+        if ($modoTeste) {
+            $novos = $allProducts | Select-Object -First 3
+            Write-Log "MODO TESTE: a enviar email com 3 produtos de exemplo"
+        } else {
+            $novos = $allProducts | Where-Object { -not $idsConhecidos.ContainsKey($_.ProdID) }
+        }
 
         if ($novos.Count -gt 0) {
             Write-Log ("Produtos novos encontrados: " + $novos.Count)
