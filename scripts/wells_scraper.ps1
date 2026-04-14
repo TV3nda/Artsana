@@ -386,7 +386,84 @@ Write-Host ("  Log:       logs\scraper_" + $YearMonth + ".log") -ForegroundColor
 Write-Host ""
 Write-Log ("=== Concluido. Total: " + $allProducts.Count + " produtos ===")
 
-# 6. Gerar dashboard interativo
+# 6. Detetar produtos novos e enviar alerta por email
+$resendKey = $env:RESEND_API_KEY
+if ($resendKey) {
+    try {
+        # IDs ja conhecidos no historico (dias anteriores)
+        $HistoricoFile = Join-Path $OutputDir "historico\wells_historico.csv"
+        $idsConhecidos = @{}
+        if (Test-Path $HistoricoFile) {
+            $historico = Import-Csv -Path $HistoricoFile -Delimiter ";" -Encoding UTF8
+            foreach ($row in $historico) {
+                if ($row.Data -ne $Date) { $idsConhecidos[$row.ProdID] = $true }
+            }
+        }
+
+        # Produtos de hoje que nao existiam antes
+        $novos = $allProducts | Where-Object { -not $idsConhecidos.ContainsKey($_.ProdID) }
+
+        if ($novos.Count -gt 0) {
+            Write-Log ("Produtos novos encontrados: " + $novos.Count)
+
+            # Construir email HTML
+            $linhas = $novos | ForEach-Object {
+                $preco = $_.Preco.ToString("0.00", [System.Globalization.CultureInfo]::InvariantCulture)
+                $pvpr  = if ($_.PVPR) { " <span style='color:#999;text-decoration:line-through'>€" + $_.PVPR.ToString("0.00", [System.Globalization.CultureInfo]::InvariantCulture) + "</span>" } else { "" }
+                $desc  = if ($_.Desconto_Pct) { " <span style='color:#e74c3c;font-weight:bold'>-" + $_.Desconto_Pct + "%</span>" } else { "" }
+                "<tr><td style='padding:8px;border-bottom:1px solid #eee'>" + $_.Categoria + "</td>" +
+                "<td style='padding:8px;border-bottom:1px solid #eee'>" + $_.Marca + "</td>" +
+                "<td style='padding:8px;border-bottom:1px solid #eee'><a href='" + $_.URL + "'>" + $_.Produto + "</a></td>" +
+                "<td style='padding:8px;border-bottom:1px solid #eee'>€" + $preco + $pvpr + $desc + "</td></tr>"
+            }
+
+            $emailHtml = @"
+<div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto">
+  <h2 style="color:#1a5276">Wells.pt — $($novos.Count) produto(s) novo(s) detetado(s)</h2>
+  <p style="color:#555">Data: $Date</p>
+  <table style="width:100%;border-collapse:collapse">
+    <thead>
+      <tr style="background:#1a5276;color:#fff">
+        <th style="padding:8px;text-align:left">Categoria</th>
+        <th style="padding:8px;text-align:left">Marca</th>
+        <th style="padding:8px;text-align:left">Produto</th>
+        <th style="padding:8px;text-align:left">Preco</th>
+      </tr>
+    </thead>
+    <tbody>
+      $($linhas -join "`n")
+    </tbody>
+  </table>
+  <p style="margin-top:16px"><a href="https://tv3nda.github.io/Artsana">Ver dashboard completo</a></p>
+</div>
+"@
+
+            $body = @{
+                from    = "Wells Scraper <onboarding@resend.dev>"
+                to      = @("tomas.venda@artsana.com")
+                subject = "Wells.pt — $($novos.Count) produto(s) novo(s) em $Date"
+                html    = $emailHtml
+            } | ConvertTo-Json -Depth 3
+
+            $headers = @{
+                "Authorization" = "Bearer $resendKey"
+                "Content-Type"  = "application/json"
+            }
+
+            $resp = Invoke-WebRequest -Uri "https://api.resend.com/emails" -Method POST -Headers $headers -Body $body -UseBasicParsing
+            Write-Log ("Email enviado. Status: " + $resp.StatusCode)
+            Write-Host ("  Email enviado: " + $novos.Count + " produtos novos") -ForegroundColor Green
+        } else {
+            Write-Log "Sem produtos novos hoje."
+            Write-Host "  Sem produtos novos hoje." -ForegroundColor Gray
+        }
+    } catch {
+        Write-Log ("AVISO: Alerta email falhou - " + $_.Exception.Message)
+        Write-Host ("  AVISO: Email nao enviado - " + $_.Exception.Message) -ForegroundColor Red
+    }
+}
+
+# 8. Gerar dashboard interativo
 $DashboardScript = Join-Path $PSScriptRoot "gerar_dashboard.ps1"
 if (Test-Path $DashboardScript) {
     Write-Host "  A gerar dashboard interativo..." -ForegroundColor Cyan
