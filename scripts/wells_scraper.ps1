@@ -415,12 +415,12 @@ if ($resendKey) {
             # Construir email HTML
             $linhas = $novos | ForEach-Object {
                 $preco = $_.Preco.ToString("0.00", [System.Globalization.CultureInfo]::InvariantCulture)
-                $pvpr  = if ($_.PVPR) { " <span style='color:#999;text-decoration:line-through'>€" + $_.PVPR.ToString("0.00", [System.Globalization.CultureInfo]::InvariantCulture) + "</span>" } else { "" }
+                $pvpr  = if ($_.PVPR) { " <span style='color:#999;text-decoration:line-through'>&euro;" + $_.PVPR.ToString("0.00", [System.Globalization.CultureInfo]::InvariantCulture) + "</span>" } else { "" }
                 $desc  = if ($_.Desconto_Pct) { " <span style='color:#e74c3c;font-weight:bold'>-" + $_.Desconto_Pct + "%</span>" } else { "" }
                 "<tr><td style='padding:8px;border-bottom:1px solid #eee'>" + $_.Categoria + "</td>" +
                 "<td style='padding:8px;border-bottom:1px solid #eee'>" + $_.Marca + "</td>" +
                 "<td style='padding:8px;border-bottom:1px solid #eee'><a href='" + $_.URL + "'>" + $_.Produto + "</a></td>" +
-                "<td style='padding:8px;border-bottom:1px solid #eee'>€" + $preco + $pvpr + $desc + "</td></tr>"
+                "<td style='padding:8px;border-bottom:1px solid #eee'>&euro;" + $preco + $pvpr + $desc + "</td></tr>"
             }
 
             $emailHtml = @"
