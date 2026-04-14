@@ -446,7 +446,7 @@ if ($resendKey) {
 
             $body = @{
                 from    = "Wells Scraper <onboarding@resend.dev>"
-                to      = @("tomas.venda@artsana.com")
+                to      = @("tomasvenda@hotmail.com")
                 subject = "Wells.pt — $($novos.Count) produto(s) novo(s) em $Date"
                 html    = $emailHtml
             } | ConvertTo-Json -Depth 3
