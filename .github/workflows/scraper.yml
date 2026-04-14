@@ -2,7 +2,7 @@ name: Wells Price Scraper
 
 on:
   schedule:
-    - cron: '0 10 * * *'   # 10:00 UTC = 11:00 hora de Lisboa (verao)
+    - cron: '0 8 * * *'    # 08:00 UTC = 09:00 hora de Lisboa (verao)
   workflow_dispatch:         # permite correr manualmente com um clique
     inputs:
       teste_email:
