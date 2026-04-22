@@ -161,16 +161,6 @@ function Parse-Products {
     $tilePattern = 'data-product-tile-impression="(\{[^"]{20,3000}\})"'
     $tiles = [regex]::Matches($Html, $tilePattern)
 
-    # Construir tabela de stock por produto: data-pid -> data-product-stock
-    $stockTable = @{}
-    $stockMatches = [regex]::Matches($Html, 'data-pid="(\d+)"')
-    foreach ($sm in $stockMatches) {
-        $pid   = $sm.Groups[1].Value
-        $ahead = $Html.Substring($sm.Index, [Math]::Min(12000, $Html.Length - $sm.Index))
-        $sqm   = [regex]::Match($ahead, 'data-product-stock="(\d+)"')
-        if ($sqm.Success) { $stockTable[$pid] = [int]$sqm.Groups[1].Value }
-    }
-
     foreach ($tile in $tiles) {
         $jsonRaw = Decode-HtmlEntities $tile.Groups[1].Value
 
@@ -193,8 +183,10 @@ function Parse-Products {
         $price    = $priceRaw
         $pvpr     = if ($pvprRaw -ne $priceRaw) { $pvprRaw } else { $null }
 
-        $stockQty = if ($stockTable.ContainsKey($prodId)) { $stockTable[$prodId] } else { 1 }
-        $stock    = if ($stockQty -eq 0) { "Sem Stock" } else { "Disponivel" }
+        # Stock: data-available="false" no elemento w-product-availability-wrapper
+        $tileWindow  = $Html.Substring($tile.Index, [Math]::Min(4000, $Html.Length - $tile.Index))
+        $availMatch  = [regex]::Match($tileWindow, 'data-available="(true|false)"')
+        $stock       = if ($availMatch.Success -and $availMatch.Groups[1].Value -eq "false") { "Sem Stock" } else { "Disponivel" }
 
         $discount = $null
         if ($null -ne $pvpr -and $pvpr -gt $price -and $pvpr -gt 0) {
