@@ -49,15 +49,9 @@ jobs:
             git commit -m "Scraper: $(Get-Date -Format 'yyyy-MM-dd')"
             $pushOut = git push origin master 2>&1
             if ($LASTEXITCODE -ne 0) {
-              Write-Host "Push rejeitado, a tentar rebase..."
-              git pull origin master --rebase
-              if ($LASTEXITCODE -ne 0) {
-                Write-Host "Rebase com conflito (corridas multiplas no mesmo dia), a forcar push..."
-                git rebase --abort
-                git push origin master --force-with-lease
-              } else {
-                git push origin master
-              }
+              Write-Host "Push rejeitado. A buscar estado remoto e a forcar push..."
+              git fetch origin master
+              git push origin master --force-with-lease
             }
           } else {
             Write-Host "Sem alteracoes para guardar."
