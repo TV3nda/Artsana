@@ -161,6 +161,16 @@ function Parse-Products {
     $tilePattern = 'data-product-tile-impression="(\{[^"]{20,3000}\})"'
     $tiles = [regex]::Matches($Html, $tilePattern)
 
+    # Construir tabela de stock por produto: data-pid -> data-product-stock
+    $stockTable = @{}
+    $stockMatches = [regex]::Matches($Html, 'data-pid="(\d+)"')
+    foreach ($sm in $stockMatches) {
+        $pid   = $sm.Groups[1].Value
+        $ahead = $Html.Substring($sm.Index, [Math]::Min(12000, $Html.Length - $sm.Index))
+        $sqm   = [regex]::Match($ahead, 'data-product-stock="(\d+)"')
+        if ($sqm.Success) { $stockTable[$pid] = [int]$sqm.Groups[1].Value }
+    }
+
     foreach ($tile in $tiles) {
         $jsonRaw = Decode-HtmlEntities $tile.Groups[1].Value
 
@@ -169,7 +179,6 @@ function Parse-Products {
         $idMatch     = [regex]::Match($jsonRaw, '"id"\s*:\s*"([^"]+)"')
         $priceMatch  = [regex]::Match($jsonRaw, '"price"\s*:\s*([\d.]+)')
         $pvpMatch    = [regex]::Match($jsonRaw, '"pvp"\s*:\s*([\d.]+)')
-        $notifyMatch = [regex]::Match($jsonRaw, '"notify"\s*:\s*(true|false)')
         $urlMatch    = [regex]::Match($jsonRaw, '"url"\s*:\s*"([^"]+)"')
 
         if (-not $nameMatch.Success -or -not $priceMatch.Success) { continue }
@@ -184,8 +193,8 @@ function Parse-Products {
         $price    = $priceRaw
         $pvpr     = if ($pvprRaw -ne $priceRaw) { $pvprRaw } else { $null }
 
-        $notify = $notifyMatch.Success -and $notifyMatch.Groups[1].Value -eq "true"
-        $stock  = if ($notify) { "Sem Stock" } else { "Disponivel" }
+        $stockQty = if ($stockTable.ContainsKey($prodId)) { $stockTable[$prodId] } else { 1 }
+        $stock    = if ($stockQty -eq 0) { "Sem Stock" } else { "Disponivel" }
 
         $discount = $null
         if ($null -ne $pvpr -and $pvpr -gt $price -and $pvpr -gt 0) {
