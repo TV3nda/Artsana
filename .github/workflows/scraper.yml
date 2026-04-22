@@ -43,16 +43,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:$env:GITHUB_TOKEN@github.com/TV3nda/Artsana.git"
+          git fetch origin master
+          git reset --soft origin/master
           git add data/historico/wells_historico.csv index.html
           git diff --staged --quiet
           if ($LASTEXITCODE -eq 1) {
             git commit -m "Scraper: $(Get-Date -Format 'yyyy-MM-dd')"
-            $pushOut = git push origin master 2>&1
-            if ($LASTEXITCODE -ne 0) {
-              Write-Host "Push rejeitado. A buscar estado remoto e a forcar push..."
-              git fetch origin master
-              git push origin master --force-with-lease
-            }
+            git push origin master
           } else {
             Write-Host "Sem alteracoes para guardar."
           }
