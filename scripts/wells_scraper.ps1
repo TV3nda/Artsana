@@ -164,12 +164,15 @@ function Parse-Products {
     foreach ($tile in $tiles) {
         $jsonRaw = Decode-HtmlEntities $tile.Groups[1].Value
 
-        $nameMatch   = [regex]::Match($jsonRaw, '"name"\s*:\s*"([^"]+)"')
-        $brandMatch  = [regex]::Match($jsonRaw, '"brand"\s*:\s*"([^"]*)"')
-        $idMatch     = [regex]::Match($jsonRaw, '"id"\s*:\s*"([^"]+)"')
-        $priceMatch  = [regex]::Match($jsonRaw, '"price"\s*:\s*([\d.]+)')
-        $pvpMatch    = [regex]::Match($jsonRaw, '"pvp"\s*:\s*([\d.]+)')
-        $urlMatch    = [regex]::Match($jsonRaw, '"url"\s*:\s*"([^"]+)"')
+        $nameMatch         = [regex]::Match($jsonRaw, '"name"\s*:\s*"([^"]+)"')
+        $brandMatch        = [regex]::Match($jsonRaw, '"brand"\s*:\s*"([^"]*)"')
+        $idMatch           = [regex]::Match($jsonRaw, '"id"\s*:\s*"([^"]+)"')
+        $priceMatch        = [regex]::Match($jsonRaw, '"price"\s*:\s*([\d.]+)')
+        $pvpMatch          = [regex]::Match($jsonRaw, '"pvp"\s*:\s*([\d.]+)')
+        $urlMatch          = [regex]::Match($jsonRaw, '"url"\s*:\s*"([^"]+)"')
+        $availableMatch    = [regex]::Match($jsonRaw, '"available"\s*:\s*(true|false)')
+        $readyToOrderMatch = [regex]::Match($jsonRaw, '"readyToOrder"\s*:\s*(true|false)')
+        $notifyMatch       = [regex]::Match($jsonRaw, '"notify"\s*:\s*(true|false)')
 
         if (-not $nameMatch.Success -or -not $priceMatch.Success) { continue }
 
@@ -183,10 +186,12 @@ function Parse-Products {
         $price    = $priceRaw
         $pvpr     = if ($pvprRaw -ne $priceRaw) { $pvprRaw } else { $null }
 
-        # Stock: data-available="false" no elemento w-product-availability-wrapper
-        $tileWindow  = $Html.Substring($tile.Index, [Math]::Min(4000, $Html.Length - $tile.Index))
-        $availMatch  = [regex]::Match($tileWindow, 'data-available="(true|false)"')
-        $stock       = if ($availMatch.Success -and $availMatch.Groups[1].Value -eq "false") { "Sem Stock" } else { "Disponivel" }
+        # Stock: campos do JSON do tile (por ordem de fiabilidade)
+        # available=false -> sem stock | readyToOrder=false -> sem stock | notify=true -> sem stock
+        $stock = "Disponivel"
+        if ($availableMatch.Success    -and $availableMatch.Groups[1].Value    -eq "false") { $stock = "Sem Stock" }
+        elseif ($readyToOrderMatch.Success -and $readyToOrderMatch.Groups[1].Value -eq "false") { $stock = "Sem Stock" }
+        elseif ($notifyMatch.Success   -and $notifyMatch.Groups[1].Value       -eq "true")  { $stock = "Sem Stock" }
 
         $discount = $null
         if ($null -ne $pvpr -and $pvpr -gt $price -and $pvpr -gt 0) {
@@ -273,6 +278,15 @@ foreach ($cat in $CATEGORIES) {
     do {
         $html = Fetch-Page -CgId $cat.CgId -Start $start
         if ($null -eq $html -or $html.Length -lt 100) { break }
+
+        # DEBUG: log JSON do 1o tile da 1a pagina para diagnostico de stock
+        if ($start -eq 0 -and $pages -eq 0) {
+            $dbgM = [regex]::Match($html, 'data-product-tile-impression="(\{[^"]{20,3000}\})"')
+            if ($dbgM.Success) {
+                $dbgJ = $dbgM.Groups[1].Value -replace '&quot;','"' -replace '&amp;','&'
+                Write-Log ("[DEBUG] Tile JSON (" + $cat.Name + "): " + $dbgJ.Substring(0, [Math]::Min(500, $dbgJ.Length)))
+            }
+        }
 
         $parsed = Parse-Products -Html $html -Category $cat.Name
         if ($parsed.Count -eq 0) { break }
