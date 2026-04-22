@@ -279,12 +279,14 @@ foreach ($cat in $CATEGORIES) {
         $html = Fetch-Page -CgId $cat.CgId -Start $start
         if ($null -eq $html -or $html.Length -lt 100) { break }
 
-        # DEBUG: log JSON do 1o tile da 1a pagina para diagnostico de stock
+        # DEBUG: mostrar JSON do 1o tile para diagnostico de stock (aparece nos logs do GitHub Actions)
         if ($start -eq 0 -and $pages -eq 0) {
             $dbgM = [regex]::Match($html, 'data-product-tile-impression="(\{[^"]{20,3000}\})"')
             if ($dbgM.Success) {
                 $dbgJ = $dbgM.Groups[1].Value -replace '&quot;','"' -replace '&amp;','&'
-                Write-Log ("[DEBUG] Tile JSON (" + $cat.Name + "): " + $dbgJ.Substring(0, [Math]::Min(500, $dbgJ.Length)))
+                Write-Host ("[DEBUG-STOCK] " + $cat.Name + ": " + $dbgJ.Substring(0, [Math]::Min(600, $dbgJ.Length)))
+            } else {
+                Write-Host ("[DEBUG-STOCK] " + $cat.Name + ": nenhum tile encontrado no HTML")
             }
         }
 
