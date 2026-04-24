@@ -184,6 +184,18 @@ td a:hover{text-decoration:underline}
 .pagination button{padding:5px 10px;border:1px solid #ccc;background:#fff;border-radius:4px;cursor:pointer;font-size:12px}
 .pagination button.active{background:#2874a6;color:#fff;border-color:#2874a6}
 .pagination button:hover:not(.active){background:#eee}
+.evo-cards-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.evo-card{display:flex;align-items:center;gap:10px;padding:9px 13px;background:#2c3e50;border:2px solid transparent;border-radius:8px;cursor:pointer;transition:all .18s;min-width:210px;max-width:300px;font-size:13px}
+.evo-card:hover{background:#34495e}
+.evo-card.selected{border-color:var(--ec,#2874a6);background:#1a252f}
+.evo-dot{width:10px;height:10px;border-radius:50%;background:#555;flex-shrink:0;transition:background .18s}
+.evo-card.selected .evo-dot{background:var(--ec,#2874a6)}
+.evo-info{flex:1;min-width:0}
+.evo-brand{font-size:11px;color:#aaa;display:block}
+.evo-name{font-size:12px;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.evo-price{font-size:13px;font-weight:bold;color:#5dade2;white-space:nowrap;text-align:right}
+.evo-sel-bar{display:flex;align-items:center;gap:12px;padding:9px 14px;background:#1a3a4a;border-radius:8px;margin-bottom:10px;font-size:13px;color:#ccc}
+.evo-sel-bar span{flex:1}
 </style>
 </head>
 <body>
@@ -591,118 +603,146 @@ function _renderComparePage() {
 }
 
 // ============================================================
-// TAB: EVOLUCAO
+// TAB: EVOLUCAO — comparacao multipla
 // ============================================================
-let evoSelected = null;
+const EVO_COLORS = ['#2874a6','#e74c3c','#27ae60','#f39c12','#8e44ad'];
+let evoSelected = []; // array de IDs seleccionados (max 5)
 
-function searchProducts() {
+function _evoSearch() {
   const q   = document.getElementById('evo-search').value.toLowerCase().trim();
   const cat = document.getElementById('evo-cat').value;
-  const div = document.getElementById('evo-results');
-
-  if(!q && !cat) { div.innerHTML = '<p class="info">Pesquisa um produto pelo nome ou marca para ver a evolução de preço.</p>'; return; }
-
-  const found = ALL_PRODUCTS.filter(p => {
+  return ALL_PRODUCTS.filter(p => {
     if(cat && p.c !== cat) return false;
     return !q || p.n.toLowerCase().includes(q) || p.m.toLowerCase().includes(q);
-  }).slice(0, 20);
-
-  if(!found.length) { div.innerHTML = '<p class="info">Nenhum produto encontrado.</p>'; return; }
-
-  div.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
-    found.map(p =>
-      '<button class="btn" style="background:#34495e;font-size:12px" onclick="selectProduct(\''+p.id+'\')">'+esc(p.m)+' – '+esc(p.n.substring(0,40))+'</button>'
-    ).join('') + '</div>';
+  }).slice(0, 30);
 }
 
-function selectProduct(id) {
-  const prod = ALL_PRODUCTS.find(p => p.id===id);
-  if(!prod) return;
-  evoSelected = prod;
+function searchProducts() {
+  const div   = document.getElementById('evo-results');
+  const q     = document.getElementById('evo-search').value.toLowerCase().trim();
+  const cat   = document.getElementById('evo-cat').value;
+  if(!q && !cat) { div.innerHTML = '<p class="info">Pesquisa um produto pelo nome ou marca. Podes seleccionar até 5 para comparar no mesmo gráfico.</p>'; return; }
+  const found = _evoSearch();
+  if(!found.length) { div.innerHTML = '<p class="info">Nenhum produto encontrado.</p>'; return; }
+  _renderEvoCards(found);
+}
 
-  const sortedDates = Object.keys(prod.h).sort();
+function _renderEvoCards(found) {
+  const div = document.getElementById('evo-results');
+  const bar = evoSelected.length > 0
+    ? '<div class="evo-sel-bar"><span>'+evoSelected.length+' produto'+(evoSelected.length>1?'s':'')+' seleccionado'+(evoSelected.length>1?'s':'')+' (máx. 5)</span><button class="btn" style="font-size:12px;padding:5px 12px" onclick="clearEvoSelection()">Limpar seleção</button></div>'
+    : '';
+  const cards = found.map(p => {
+    const si    = evoSelected.indexOf(p.id);
+    const sel   = si >= 0;
+    const color = sel ? EVO_COLORS[si % EVO_COLORS.length] : '#555';
+    const dates = Object.keys(p.h).sort();
+    const last  = dates.length ? p.h[dates[dates.length-1]] : null;
+    const price = last ? fmt(last.p) : '-';
+    const disc  = last && last.d ? ' <span class="badge badge-desc">-'+last.d+'%</span>' : '';
+    return '<div class="evo-card'+(sel?' selected':'')+'" style="--ec:'+color+'" onclick="toggleEvoProduct(\''+p.id+'\')">'
+      +'<div class="evo-dot"></div>'
+      +'<div class="evo-info"><span class="evo-brand">'+esc(p.m)+'</span><span class="evo-name" title="'+esc(p.n)+'">'+esc(p.n.substring(0,38))+'</span></div>'
+      +'<div class="evo-price">'+price+disc+'</div>'
+      +'</div>';
+  }).join('');
+  div.innerHTML = bar + '<div class="evo-cards-grid">'+cards+'</div>';
+}
 
-  // Mostrar painel de export e preencher datas
+function toggleEvoProduct(id) {
+  const idx = evoSelected.indexOf(id);
+  if(idx >= 0) {
+    evoSelected.splice(idx, 1);
+  } else {
+    if(evoSelected.length >= 5) return;
+    evoSelected.push(id);
+  }
+  _renderEvoCards(_evoSearch());
+  if(evoSelected.length > 0) { updateEvoChart(); }
+  else { document.getElementById('evo-chart-area').style.display='none'; document.getElementById('evo-export').style.display='none'; }
+}
+
+function clearEvoSelection() {
+  evoSelected = [];
+  _renderEvoCards(_evoSearch());
+  document.getElementById('evo-chart-area').style.display='none';
+  document.getElementById('evo-export').style.display='none';
+}
+
+function updateEvoChart() {
+  const prods = evoSelected.map(id => ALL_PRODUCTS.find(p => p.id===id)).filter(Boolean);
+  if(!prods.length) return;
+  const single = prods.length === 1;
+
+  // Datas union de todos os produtos seleccionados
+  const allDates = [...new Set(prods.flatMap(p => Object.keys(p.h)))].sort();
+
+  // Export panel
   document.getElementById('evo-export').style.display = 'flex';
-  document.getElementById('evo-date-start').value = sortedDates[0];
-  document.getElementById('evo-date-end').value   = sortedDates[sortedDates.length-1];
-  const prices = sortedDates.map(d => prod.h[d].p);
-  const pvprs  = sortedDates.map(d => prod.h[d].v || null);
+  document.getElementById('evo-date-start').value = allDates[0]||'';
+  document.getElementById('evo-date-end').value   = allDates[allDates.length-1]||'';
 
-  // Cards
-  const allPrices = prices.filter(p=>p!==null);
-  const minP = Math.min(...allPrices);
-  const maxP = Math.max(...allPrices);
-  const lastP = allPrices[allPrices.length-1];
-  const firstP = allPrices[0];
-  const totalVar = firstP>0 ? ((lastP-firstP)/firstP*100) : 0;
+  // Cards de estatísticas
+  if(single) {
+    const p = prods[0]; const dd = Object.keys(p.h).sort();
+    const pp = dd.map(d=>p.h[d].p).filter(v=>v!=null);
+    const lastP=pp[pp.length-1], firstP=pp[0], minP=Math.min(...pp), maxP=Math.max(...pp);
+    const tv = firstP>0 ? ((lastP-firstP)/firstP*100) : 0;
+    document.getElementById('cards-evo').innerHTML =
+      card(fmt(lastP),'Preço atual')+card(fmt(minP),'Mínimo histórico')+card(fmt(maxP),'Máximo histórico')+
+      card((tv>=0?'+':'')+tv.toFixed(1)+'%','Variação total')+card(dd.length,'Dias registados');
+  } else {
+    document.getElementById('cards-evo').innerHTML = prods.map((p,i) => {
+      const col = EVO_COLORS[i%EVO_COLORS.length];
+      const dd  = Object.keys(p.h).sort(); const pp = dd.map(d=>p.h[d].p).filter(v=>v!=null);
+      const lastP=pp[pp.length-1], minP=Math.min(...pp);
+      const tv = pp.length>1 ? ((lastP-pp[0])/pp[0]*100) : 0;
+      return '<div class="card" style="border-top:3px solid '+col+';min-width:120px">'
+        +'<div class="val" style="font-size:12px;color:'+col+'">'+esc(p.m.substring(0,14))+'</div>'
+        +'<div class="val" style="font-size:20px">'+fmt(lastP)+'</div>'
+        +'<div class="lbl">mín '+fmt(minP)+' &nbsp;·&nbsp; '+(tv>=0?'+':'')+tv.toFixed(1)+'%</div>'
+        +'</div>';
+    }).join('');
+  }
 
-  document.getElementById('cards-evo').innerHTML =
-    card(fmt(lastP),              'Preço atual') +
-    card(fmt(minP),               'Mínimo histórico') +
-    card(fmt(maxP),               'Máximo histórico') +
-    card((totalVar>=0?'+':'')+totalVar.toFixed(1)+'%', 'Variação total') +
-    card(sortedDates.length,      'Dias registados');
-
-  // Chart
-  const area = document.getElementById('evo-chart-area');
-  area.style.display = 'block';
-
+  // Gráfico
+  document.getElementById('evo-chart-area').style.display = 'block';
   if(evoChart) evoChart.destroy();
   const ctx = document.getElementById('evoChart').getContext('2d');
+  const datasets = prods.flatMap((p,i) => {
+    const col  = EVO_COLORS[i%EVO_COLORS.length];
+    const prices = allDates.map(d => p.h[d] ? p.h[d].p : null);
+    const ds = [{ label: p.m+' – '+p.n.substring(0,28), data: prices,
+      borderColor:col, backgroundColor: single?col.replace('#','rgba(')+'1)'.replace(/rgba\(([0-9a-f]{6})1\)/,(_,h)=>'rgba('+parseInt(h.substring(0,2),16)+','+parseInt(h.substring(2,4),16)+','+parseInt(h.substring(4,6),16)+',.1)'):'transparent',
+      tension:0.3, fill:single, pointRadius:4, spanGaps:true }];
+    if(single) ds.push({ label:'PVPR', data:allDates.map(d=>p.h[d]?(p.h[d].v||null):null),
+      borderColor:'#e74c3c', borderDash:[5,5], tension:0.3, fill:false, pointRadius:2, spanGaps:true });
+    return ds;
+  });
   evoChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: sortedDates,
-      datasets: [
-        {
-          label: 'Preço atual',
-          data: prices,
-          borderColor: '#2874a6',
-          backgroundColor: 'rgba(40,116,166,.1)',
-          tension: 0.3,
-          fill: true,
-          pointRadius: 4,
-          spanGaps: true
-        },
-        {
-          label: 'PVPR',
-          data: pvprs,
-          borderColor: '#e74c3c',
-          borderDash: [5,5],
-          tension: 0.3,
-          fill: false,
-          pointRadius: 2,
-          spanGaps: true
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        title: { display: true, text: prod.m + ' — ' + prod.n, font:{size:13} },
-        tooltip: {
-          callbacks: {
-            label: ctx => ctx.dataset.label + ': €' + (ctx.parsed.y||0).toFixed(2)
-          }
-        }
-      },
-      scales: {
-        y: { ticks: { callback: v => '€'+v.toFixed(2) } }
-      }
-    }
+    type:'line', data:{labels:allDates, datasets},
+    options:{ responsive:true, plugins:{
+      title:{display:true, text: single?(prods[0].m+' — '+prods[0].n):'Comparação de preços', font:{size:13}},
+      tooltip:{callbacks:{label:c=>c.dataset.label+': €'+(c.parsed.y||0).toFixed(2)}}
+    }, scales:{y:{ticks:{callback:v=>'€'+v.toFixed(2)}}}}
   });
 
-  // History table
-  const tbody = document.getElementById('tbody-evo');
-  tbody.innerHTML = [...sortedDates].reverse().map(d => {
-    const h = prod.h[d];
-    const dCell  = h.d ? '<span class="badge badge-desc">-'+h.d+'%</span>' : '-';
-    const sCell  = h.s ? '<span class="stock-no">Sem Stock</span>' : '<span class="stock-ok">OK</span>';
-    const poupanca = (h.v && h.p) ? '€'+(h.v-h.p).toFixed(2) : '-';
-    return '<tr><td>'+d+'</td><td>'+fmt(h.p)+'</td><td>'+(h.v?fmt(h.v):'-')+'</td><td>'+dCell+'</td><td>'+poupanca+'</td><td>'+sCell+'</td></tr>';
-  }).join('');
+  // Tabela de histórico — só para produto único
+  document.getElementById('tbl-evo').style.display = single ? '' : 'none';
+  if(single) {
+    const p = prods[0]; const dd = Object.keys(p.h).sort();
+    document.getElementById('tbody-evo').innerHTML = [...dd].reverse().map(d => {
+      const h=p.h[d];
+      return '<tr><td>'+d+'</td><td>'+fmt(h.p)+'</td><td>'+(h.v?fmt(h.v):'-')+'</td>'
+        +'<td>'+(h.d?'<span class="badge badge-desc">-'+h.d+'%</span>':'-')+'</td>'
+        +'<td>'+(h.v&&h.p?'€'+(h.v-h.p).toFixed(2):'-')+'</td>'
+        +'<td>'+(h.s?'<span class="stock-no">Sem Stock</span>':'<span class="stock-ok">OK</span>')+'</td></tr>';
+    }).join('');
+  }
 }
+
+// Manter compatibilidade com chamadas antigas
+function selectProduct(id) { toggleEvoProduct(id); }
 
 // ============================================================
 // UTILITARIOS
@@ -745,40 +785,35 @@ function renderPagination(containerId, pages, current, cb) {
 
 // Ordenacao de tabelas
 function downloadExcel() {
-  if(!evoSelected) return;
-  const prod      = evoSelected;
+  if(!evoSelected.length) return;
+  const prods     = evoSelected.map(id => ALL_PRODUCTS.find(p => p.id===id)).filter(Boolean);
   const startDate = document.getElementById('evo-date-start').value;
   const endDate   = document.getElementById('evo-date-end').value;
 
-  const dates = Object.keys(prod.h).sort().filter(d => {
-    if(startDate && d < startDate) return false;
-    if(endDate   && d > endDate)   return false;
-    return true;
+  const rows = [['Produto','Marca','Categoria','Data','Preço','PVPR','Desconto %','Poupança €','Stock']];
+  prods.forEach(prod => {
+    Object.keys(prod.h).sort().filter(d => {
+      if(startDate && d < startDate) return false;
+      if(endDate   && d > endDate)   return false;
+      return true;
+    }).forEach(d => {
+      const h = prod.h[d];
+      rows.push([prod.n, prod.m, prod.c, d,
+        h.p||'', h.v||'', h.d||0,
+        (h.v&&h.p) ? parseFloat((h.v-h.p).toFixed(2)) : '',
+        h.s ? 'Sem Stock' : 'Disponível']);
+    });
   });
 
-  if(dates.length === 0) { alert('Nenhum registo no período selecionado.'); return; }
-
-  const rows = [['Produto', 'Marca', 'Categoria', 'Data', 'Preço', 'PVPR', 'Desconto %', 'Poupança €', 'Stock']];
-  dates.forEach(d => {
-    const h = prod.h[d];
-    rows.push([
-      prod.n, prod.m, prod.c, d,
-      h.p || '',
-      h.v || '',
-      h.d || 0,
-      (h.v && h.p) ? parseFloat((h.v - h.p).toFixed(2)) : '',
-      h.s ? 'Sem Stock' : 'Disponível'
-    ]);
-  });
+  if(rows.length <= 1) { alert('Nenhum registo no período selecionado.'); return; }
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  // Largura das colunas
-  ws['!cols'] = [40,20,20,12,10,10,12,12,12].map(w => ({wch:w}));
-
+  ws['!cols'] = [40,20,20,12,10,10,12,12,12].map(w=>({wch:w}));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Histórico');
-
-  const filename = (prod.m + ' - ' + prod.n).replace(/[\\/:*?"<>|]/g,'_') + '.xlsx';
+  const filename = prods.length===1
+    ? (prods[0].m+' - '+prods[0].n).replace(/[\\/:*?"<>|]/g,'_')+'.xlsx'
+    : 'Comparacao_Wells.xlsx';
   XLSX.writeFile(wb, filename);
 }
 
