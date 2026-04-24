@@ -196,7 +196,12 @@ td a:hover{text-decoration:underline}
 .evo-price{font-size:13px;font-weight:bold;color:#5dade2;white-space:nowrap;text-align:right}
 .evo-sel-bar{display:flex;align-items:center;gap:12px;padding:9px 14px;background:#1a3a4a;border-radius:8px;margin-bottom:10px;font-size:13px;color:#ccc}
 .evo-sel-bar span{flex:1}
-.brand-grid{display:flex;gap:14px;overflow-x:auto;align-items:flex-start;padding-bottom:12px}
+.brand-grid{display:flex;gap:14px;align-items:flex-start;padding-bottom:12px}
+#marcas-grid{overflow-x:auto;scroll-behavior:smooth}
+.brand-nav{display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:20;background:#f5f7fa;padding:7px 0 6px;margin-bottom:4px;border-bottom:1px solid #e8eaf0}
+.brand-nav-btn{background:#2874a6;color:#fff;border:none;border-radius:6px;width:36px;height:36px;font-size:22px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;user-select:none}
+.brand-nav-btn:hover{background:#1a5276}
+.brand-nav-info{font-size:12px;color:#666;margin-left:2px}
 .brand-col{min-width:190px;max-width:230px;flex-shrink:0;background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1);overflow:hidden}
 .brand-hdr{background:#2874a6;color:#fff;padding:10px 14px;font-weight:bold;font-size:13px;display:flex;justify-content:space-between;align-items:center}
 .brand-hdr .brand-count{font-size:11px;opacity:.8;font-weight:normal}
@@ -366,6 +371,11 @@ td a:hover{text-decoration:underline}
       </select>
     </label>
   </div>
+  <div class="brand-nav">
+    <button class="brand-nav-btn" onclick="scrollMarcas(-1)" title="Anterior">&#8249;</button>
+    <button class="brand-nav-btn" onclick="scrollMarcas(1)" title="Próximo">&#8250;</button>
+    <span class="brand-nav-info" id="marcas-nav-info"></span>
+  </div>
   <div id="marcas-grid"></div>
 </div>
 
@@ -442,6 +452,28 @@ function renderMarcas() {
       +prods
       +'</div>';
   }).join('') + '</div>';
+  _updateMarcasInfo();
+}
+
+function scrollMarcas(dir) {
+  const grid = document.getElementById('marcas-grid');
+  if (!grid) return;
+  const step = Math.round(grid.clientWidth * 0.75) || 600;
+  grid.scrollBy({ left: dir * step, behavior: 'smooth' });
+  setTimeout(_updateMarcasInfo, 320);
+}
+
+function _updateMarcasInfo() {
+  const grid = document.getElementById('marcas-grid');
+  const info = document.getElementById('marcas-nav-info');
+  if (!grid || !info) return;
+  const cols = grid.querySelectorAll('.brand-col');
+  if (!cols.length) { info.textContent = ''; return; }
+  const colW = (cols[0].offsetWidth + 14) || 210;
+  const visible = Math.max(1, Math.round(grid.clientWidth / colW));
+  const first = Math.floor(grid.scrollLeft / colW) + 1;
+  const last  = Math.min(first + visible - 1, cols.length);
+  info.textContent = first + '–' + last + ' de ' + cols.length + ' marcas';
 }
 
 // ============================================================
@@ -474,6 +506,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   renderProducts();
   searchProducts();
+
+  // Scroll listener para o contador de marcas visíveis
+  const marcasGrid = document.getElementById('marcas-grid');
+  if (marcasGrid) marcasGrid.addEventListener('scroll', _updateMarcasInfo, { passive: true });
 });
 
 // ============================================================
