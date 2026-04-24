@@ -201,7 +201,7 @@ td a:hover{text-decoration:underline}
 .brand-arrows{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .brand-arrow-btn{background:#2874a6;color:#fff;border:none;border-radius:6px;width:36px;height:36px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;user-select:none}
 .brand-arrow-btn:hover{background:#1a5276}
-#marcas-topscroll{overflow-x:auto;overflow-y:hidden;height:14px;margin-bottom:6px}
+#marcas-range{width:100%;accent-color:#2874a6;cursor:pointer;margin-bottom:6px;display:block}
 .brand-col{min-width:190px;max-width:230px;flex-shrink:0;background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1);overflow:hidden}
 .brand-hdr{background:#2874a6;color:#fff;padding:10px 14px;font-weight:bold;font-size:13px;display:flex;justify-content:space-between;align-items:center}
 .brand-hdr .brand-count{font-size:11px;opacity:.8;font-weight:normal}
@@ -375,7 +375,7 @@ td a:hover{text-decoration:underline}
     <button class="brand-arrow-btn" onclick="scrollMarcas(-1)" title="Anterior">&#8249;</button>
     <button class="brand-arrow-btn" onclick="scrollMarcas(1)" title="Próximo">&#8250;</button>
   </div>
-  <div id="marcas-topscroll"><div id="marcas-topscroll-inner" style="height:1px"></div></div>
+  <input type="range" id="marcas-range" min="0" max="10000" value="0">
   <div id="marcas-grid"></div>
 </div>
 
@@ -452,22 +452,23 @@ function renderMarcas() {
       +prods
       +'</div>';
   }).join('') + '</div>';
-  _syncTopScroll();
+  _marcasRangeSync();
 }
 
 function scrollMarcas(dir) {
   const grid = document.getElementById('marcas-grid');
   if (!grid) return;
-  const step = Math.round(window.innerWidth * 0.8) || 800;
-  grid.scrollLeft += dir * step;
+  grid.scrollLeft += dir * (Math.round(window.innerWidth * 0.8) || 800);
 }
 
-function _syncTopScroll() {
-  const inner = document.getElementById('marcas-topscroll-inner');
+function _marcasRangeSync() {
+  // Actualiza o max do range para corresponder ao scroll real após render
   const grid  = document.getElementById('marcas-grid');
-  if (!inner || !grid) return;
-  const bg = grid.querySelector('.brand-grid');
-  inner.style.width = (bg ? bg.scrollWidth : grid.scrollWidth) + 'px';
+  const range = document.getElementById('marcas-range');
+  if (!grid || !range) return;
+  const maxScroll = grid.scrollWidth - grid.clientWidth;
+  range.max   = maxScroll > 0 ? maxScroll : 1;
+  range.value = grid.scrollLeft;
 }
 
 // ============================================================
@@ -501,20 +502,12 @@ document.addEventListener('DOMContentLoaded', () => {
   renderProducts();
   searchProducts();
 
-  // Sincronização da barra de scroll dupla (topo <-> fundo) no tab Por Marca
-  // rAF mutex: evita que um lado interrompa o scroll do outro
-  const _grid = document.getElementById('marcas-grid');
-  const _top  = document.getElementById('marcas-topscroll');
-  if (_grid && _top) {
-    let _raf = null;
-    _grid.addEventListener('scroll', () => {
-      if (_raf) return;
-      _raf = requestAnimationFrame(() => { _top.scrollLeft = _grid.scrollLeft; _raf = null; });
-    }, { passive:true });
-    _top.addEventListener('scroll', () => {
-      if (_raf) return;
-      _raf = requestAnimationFrame(() => { _grid.scrollLeft = _top.scrollLeft; _raf = null; });
-    }, { passive:true });
+  // Range slider <-> grid (sem loop: .value= não dispara 'input')
+  const _grid  = document.getElementById('marcas-grid');
+  const _range = document.getElementById('marcas-range');
+  if (_grid && _range) {
+    _range.addEventListener('input', () => { _grid.scrollLeft = +_range.value; });
+    _grid.addEventListener('scroll', () => { _range.value = _grid.scrollLeft; }, { passive:true });
   }
 });
 
