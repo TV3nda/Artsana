@@ -198,10 +198,10 @@ td a:hover{text-decoration:underline}
 .evo-sel-bar span{flex:1}
 .brand-grid{display:flex;gap:14px;align-items:flex-start;padding-bottom:12px}
 #marcas-grid{overflow-x:auto}
-.brand-scroll-bar{display:flex;align-items:center;gap:6px;margin-bottom:6px}
-.brand-scroll-bar button{flex-shrink:0;background:#2874a6;color:#fff;border:none;border-radius:6px;width:32px;height:32px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
-.brand-scroll-bar button:hover{background:#1a5276}
-#marcas-topscroll{flex:1;overflow-x:auto;overflow-y:hidden;height:14px}
+.brand-arrows{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.brand-arrow-btn{background:#2874a6;color:#fff;border:none;border-radius:6px;width:36px;height:36px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;user-select:none}
+.brand-arrow-btn:hover{background:#1a5276}
+#marcas-topscroll{overflow-x:auto;overflow-y:hidden;height:14px;margin-bottom:6px}
 .brand-col{min-width:190px;max-width:230px;flex-shrink:0;background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1);overflow:hidden}
 .brand-hdr{background:#2874a6;color:#fff;padding:10px 14px;font-weight:bold;font-size:13px;display:flex;justify-content:space-between;align-items:center}
 .brand-hdr .brand-count{font-size:11px;opacity:.8;font-weight:normal}
@@ -371,11 +371,11 @@ td a:hover{text-decoration:underline}
       </select>
     </label>
   </div>
-  <div class="brand-scroll-bar">
-    <button onclick="scrollMarcas(-1)" title="Anterior">&#8249;</button>
-    <div id="marcas-topscroll"><div id="marcas-topscroll-inner" style="height:1px"></div></div>
-    <button onclick="scrollMarcas(1)" title="Próximo">&#8250;</button>
+  <div class="brand-arrows">
+    <button class="brand-arrow-btn" onclick="scrollMarcas(-1)" title="Anterior">&#8249;</button>
+    <button class="brand-arrow-btn" onclick="scrollMarcas(1)" title="Próximo">&#8250;</button>
   </div>
+  <div id="marcas-topscroll"><div id="marcas-topscroll-inner" style="height:1px"></div></div>
   <div id="marcas-grid"></div>
 </div>
 
