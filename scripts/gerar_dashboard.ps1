@@ -458,8 +458,8 @@ function renderMarcas() {
 function scrollMarcas(dir) {
   const grid = document.getElementById('marcas-grid');
   if (!grid) return;
-  const step = Math.round((grid.offsetWidth || window.innerWidth) * 0.8) || 800;
-  grid.scrollBy({ left: dir * step, behavior: 'smooth' });
+  const step = Math.round(window.innerWidth * 0.8) || 800;
+  grid.scrollLeft += dir * step;
 }
 
 function _syncTopScroll() {
@@ -502,11 +502,19 @@ document.addEventListener('DOMContentLoaded', () => {
   searchProducts();
 
   // Sincronização da barra de scroll dupla (topo <-> fundo) no tab Por Marca
+  // rAF mutex: evita que um lado interrompa o scroll do outro
   const _grid = document.getElementById('marcas-grid');
   const _top  = document.getElementById('marcas-topscroll');
   if (_grid && _top) {
-    _grid.addEventListener('scroll', () => { _top.scrollLeft = _grid.scrollLeft; }, { passive:true });
-    _top.addEventListener('scroll',  () => { _grid.scrollLeft = _top.scrollLeft;  }, { passive:true });
+    let _raf = null;
+    _grid.addEventListener('scroll', () => {
+      if (_raf) return;
+      _raf = requestAnimationFrame(() => { _top.scrollLeft = _grid.scrollLeft; _raf = null; });
+    }, { passive:true });
+    _top.addEventListener('scroll', () => {
+      if (_raf) return;
+      _raf = requestAnimationFrame(() => { _grid.scrollLeft = _top.scrollLeft; _raf = null; });
+    }, { passive:true });
   }
 });
 
