@@ -197,7 +197,7 @@ td a:hover{text-decoration:underline}
 .evo-sel-bar{display:flex;align-items:center;gap:12px;padding:9px 14px;background:#1a3a4a;border-radius:8px;margin-bottom:10px;font-size:13px;color:#ccc}
 .evo-sel-bar span{flex:1}
 .brand-grid{display:flex;gap:14px;align-items:flex-start;padding-bottom:12px}
-#marcas-grid{overflow-x:auto;scroll-behavior:smooth}
+#marcas-grid{overflow-x:auto}
 .brand-scroll-bar{display:flex;align-items:center;gap:6px;margin-bottom:6px}
 .brand-scroll-bar button{flex-shrink:0;background:#2874a6;color:#fff;border:none;border-radius:6px;width:32px;height:32px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
 .brand-scroll-bar button:hover{background:#1a5276}
@@ -504,9 +504,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const _grid = document.getElementById('marcas-grid');
   const _top  = document.getElementById('marcas-topscroll');
   if (_grid && _top) {
-    let _lock = false;
-    _grid.addEventListener('scroll', () => { if (!_lock) { _lock=true; _top.scrollLeft=_grid.scrollLeft; _lock=false; } }, { passive:true });
-    _top.addEventListener('scroll',  () => { if (!_lock) { _lock=true; _grid.scrollLeft=_top.scrollLeft;  _lock=false; } }, { passive:true });
+    _grid.addEventListener('scroll', () => { _top.scrollLeft = _grid.scrollLeft; }, { passive:true });
+    _top.addEventListener('scroll',  () => { _grid.scrollLeft = _top.scrollLeft;  }, { passive:true });
   }
 });
 
