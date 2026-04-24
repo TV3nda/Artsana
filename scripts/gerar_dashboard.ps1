@@ -458,7 +458,8 @@ function renderMarcas() {
 function scrollMarcas(dir) {
   const grid = document.getElementById('marcas-grid');
   if (!grid) return;
-  grid.scrollBy({ left: dir * Math.round(grid.clientWidth * 0.75), behavior: 'smooth' });
+  const step = Math.round((grid.offsetWidth || window.innerWidth) * 0.8) || 800;
+  grid.scrollBy({ left: dir * step, behavior: 'smooth' });
 }
 
 function _syncTopScroll() {
