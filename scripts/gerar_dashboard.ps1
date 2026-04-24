@@ -196,6 +196,18 @@ td a:hover{text-decoration:underline}
 .evo-price{font-size:13px;font-weight:bold;color:#5dade2;white-space:nowrap;text-align:right}
 .evo-sel-bar{display:flex;align-items:center;gap:12px;padding:9px 14px;background:#1a3a4a;border-radius:8px;margin-bottom:10px;font-size:13px;color:#ccc}
 .evo-sel-bar span{flex:1}
+.brand-grid{display:flex;gap:14px;overflow-x:auto;align-items:flex-start;padding-bottom:12px}
+.brand-col{min-width:190px;max-width:230px;flex-shrink:0;background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1);overflow:hidden}
+.brand-hdr{background:#2874a6;color:#fff;padding:10px 14px;font-weight:bold;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+.brand-hdr .brand-count{font-size:11px;opacity:.8;font-weight:normal}
+.brand-prod{padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:12px}
+.brand-prod:last-child{border-bottom:none}
+.brand-prod:hover{background:#f7fbff}
+.brand-prod-name{display:block;color:#1a5276;font-weight:600;margin-bottom:5px;line-height:1.3;text-decoration:none}
+.brand-prod-name:hover{text-decoration:underline}
+.brand-prod-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.brand-price{color:#2874a6;font-weight:bold}
+.brand-price-old{color:#999;text-decoration:line-through;font-size:11px}
 </style>
 </head>
 <body>
@@ -212,6 +224,7 @@ td a:hover{text-decoration:underline}
   <button class="active" onclick="showTab('produtos')">Produtos</button>
   <button onclick="showTab('comparar')">Comparar Datas</button>
   <button onclick="showTab('evolucao')">Evolução de Preços</button>
+  <button onclick="showTab('marcas')">Por Marca</button>
 </nav>
 
 <!-- ===== TAB: PRODUTOS ===== -->
@@ -338,6 +351,24 @@ td a:hover{text-decoration:underline}
   </div>
 </div>
 
+<!-- ===== TAB: POR MARCA ===== -->
+<div id="tab-marcas" class="tab">
+  <div class="filters">
+    <label>Categoria
+      <select id="marca-cat" onchange="renderMarcas()"><option value="">Todas</option></select>
+    </label>
+    <label>Ordenar produtos por
+      <select id="marca-sort" onchange="renderMarcas()">
+        <option value="name">Nome</option>
+        <option value="price_asc">Preço ↑</option>
+        <option value="price_desc">Preço ↓</option>
+        <option value="disc">Desconto</option>
+      </select>
+    </label>
+  </div>
+  <div id="marcas-grid"></div>
+</div>
+
 <script>
 // ============================================================
 // DADOS EMBUTIDOS
@@ -356,6 +387,62 @@ let sortState = {};
 let prodSort = { col: null, dir: 'asc' };
 let currentPage = { produtos: 1, compare: 1 };
 let evoChart = null;
+
+// ============================================================
+// TAB: POR MARCA
+// ============================================================
+function renderMarcas() {
+  const cat   = document.getElementById('marca-cat').value;
+  const sortt = document.getElementById('marca-sort').value;
+  const grid  = document.getElementById('marcas-grid');
+
+  // Filtrar produtos pela categoria seleccionada
+  const prods = ALL_PRODUCTS.filter(p => !cat || p.c === cat);
+
+  // Agrupar por marca
+  const byBrand = {};
+  prods.forEach(p => {
+    if(!byBrand[p.m]) byBrand[p.m] = [];
+    // Obter dados mais recentes
+    const dates = Object.keys(p.h).sort();
+    const last  = dates.length ? p.h[dates[dates.length-1]] : null;
+    byBrand[p.m].push({ id:p.id, name:p.n, url:p.u, price:last?last.p:null, pvpr:last?last.v:null, disc:last?last.d:null, stock:last?last.s:false });
+  });
+
+  if(!Object.keys(byBrand).length) {
+    grid.innerHTML = '<p class="info">Nenhum produto encontrado.</p>';
+    return;
+  }
+
+  // Ordenar produtos dentro de cada marca
+  const sortFn = {
+    name:       (a,b) => (a.name||'').localeCompare(b.name||'','pt'),
+    price_asc:  (a,b) => (a.price||999)-(b.price||999),
+    price_desc: (a,b) => (b.price||0)-(a.price||0),
+    disc:       (a,b) => (b.disc||0)-(a.disc||0)
+  }[sortt] || ((a,b) => 0);
+
+  // Ordenar marcas por nº de produtos (mais produtos primeiro)
+  const brands = Object.keys(byBrand).sort((a,b) => byBrand[b].length - byBrand[a].length);
+
+  grid.innerHTML = '<div class="brand-grid">' + brands.map(brand => {
+    const items = [...byBrand[brand]].sort(sortFn);
+    const prods = items.map(p => {
+      const priceHtml = p.price != null ? '<span class="brand-price">'+fmt(p.price)+'</span>' : '';
+      const pvprHtml  = p.pvpr && p.pvpr !== p.price ? '<span class="brand-price-old">'+fmt(p.pvpr)+'</span>' : '';
+      const discHtml  = p.disc ? '<span class="badge badge-desc">-'+p.disc+'%</span>' : '';
+      const stockHtml = p.stock ? '<span class="stock-no" title="Sem Stock">&#9888;</span>' : '<span class="stock-ok" title="Disponível">&#10003;</span>';
+      return '<div class="brand-prod">'
+        +'<a class="brand-prod-name" href="'+esc(p.url||'')+'" target="_blank" title="'+esc(p.name)+'">'+esc(p.name.substring(0,42))+'</a>'
+        +'<div class="brand-prod-row">'+priceHtml+pvprHtml+discHtml+stockHtml+'</div>'
+        +'</div>';
+    }).join('');
+    return '<div class="brand-col">'
+      +'<div class="brand-hdr">'+esc(brand)+'<span class="brand-count">'+items.length+' produto'+(items.length!==1?'s':'')+'</span></div>'
+      +prods
+      +'</div>';
+  }).join('') + '</div>';
+}
 
 // ============================================================
 // INIT
@@ -377,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(i===0) oB.selected=true;
   });
 
-  ['f-cat','cmp-cat','evo-cat'].forEach(id => {
+  ['f-cat','cmp-cat','evo-cat','marca-cat'].forEach(id => {
     const sel = document.getElementById(id);
     CATS.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
   });
