@@ -547,6 +547,14 @@ function renderProducts() {
   _renderProductsPage();
 }
 
+function _isNovo(p) {
+  const dates = Object.keys(p.h).sort();
+  if (!dates.length) return false;
+  const firstMs  = new Date(dates[0]).getTime();
+  const latestMs = new Date(DATES[0]).getTime();
+  return (latestMs - firstMs) <= 14 * 864e5;
+}
+
 function _renderProductsPage() {
   const date   = document.getElementById('f-date').value;
   const cat    = document.getElementById('f-cat').value;
@@ -585,6 +593,11 @@ function _renderProductsPage() {
     });
   }
 
+  // Novidades sempre no topo (independente da ordenação)
+  const novos = filtered.filter(p => _isNovo(p));
+  const resto = filtered.filter(p => !_isNovo(p));
+  const sorted = [...novos, ...resto];
+
   // Summary cards
   const total    = filtered.length;
   const withDisc = filtered.filter(p => p.h[date] && p.h[date].d).length;
@@ -600,22 +613,23 @@ function _renderProductsPage() {
     (minPrice<9999 ? card('€'+minPrice.toFixed(2), 'Preço mais baixo') : '');
 
   // Pagination
-  const pages = Math.ceil(filtered.length / PAGE_SIZE);
+  const pages = Math.ceil(sorted.length / PAGE_SIZE);
   const p = currentPage.produtos;
-  const slice = filtered.slice((p-1)*PAGE_SIZE, p*PAGE_SIZE);
+  const slice = sorted.slice((p-1)*PAGE_SIZE, p*PAGE_SIZE);
 
   document.getElementById('tbl-count').textContent =
-    filtered.length + ' produtos encontrados' + (pages>1 ? ' (página '+p+' de '+pages+')' : '');
+    sorted.length + ' produtos encontrados' + (novos.length ? ' · ' + novos.length + ' novidade' + (novos.length>1?'s':'') : '') + (pages>1 ? ' (página '+p+' de '+pages+')' : '');
 
   const tbody = document.getElementById('tbody-produtos');
   tbody.innerHTML = slice.map(prod => {
     const h = prod.h[date];
+    const novoBadge = _isNovo(prod) ? ' <span class="badge badge-novo">NOVO</span>' : '';
     const dCell = h.d ? '<span class="badge badge-desc">-'+h.d+'%</span>' : '-';
     const sCell = h.s ? '<span class="stock-no">Sem Stock</span>' : '<span class="stock-ok">Disponível</span>';
     return '<tr>' +
       '<td>'+esc(prod.c)+'</td>' +
       '<td>'+esc(prod.m)+'</td>' +
-      '<td><a href="'+esc(prod.u)+'" target="_blank">'+esc(prod.n)+'</a></td>' +
+      '<td><a href="'+esc(prod.u)+'" target="_blank">'+esc(prod.n)+'</a>'+novoBadge+'</td>' +
       '<td>'+fmt(h.p)+'</td>' +
       '<td>'+(h.v?fmt(h.v):'-')+'</td>' +
       '<td>'+dCell+'</td>' +
