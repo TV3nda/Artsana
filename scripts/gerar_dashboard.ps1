@@ -299,6 +299,9 @@ td a:hover{text-decoration:underline}
     <label style="padding-top:18px">
       <button class="btn btn-compare" onclick="renderCompare()">Comparar</button>
     </label>
+    <label style="padding-top:18px">
+      <button class="btn" id="btn-cmp-excel" onclick="downloadCompareExcel()" style="display:none">&#11015; Excel</button>
+    </label>
   </div>
   <div class="summary-cards" id="cards-compare"></div>
   <div id="tbl-count-cmp"></div>
@@ -736,6 +739,39 @@ function _renderComparePage() {
   }).join('');
 
   renderPagination('pag-compare', pages, p, (n)=>{ currentPage.compare=n; _renderComparePage(); });
+
+  // Guardar rows para export e mostrar/esconder botão Excel
+  window._cmpRows = rows;
+  window._cmpDates = { a: dateA, b: dateB };
+  document.getElementById('btn-cmp-excel').style.display = rows.length ? '' : 'none';
+}
+
+function downloadCompareExcel() {
+  const rows = window._cmpRows;
+  if (!rows || !rows.length) return;
+  const { a: dateA, b: dateB } = window._cmpDates || {};
+
+  const header = ['Categoria','Marca','Produto','Preço '+dateA,'Preço '+dateB,'Variação €','Variação %','Desconto '+dateB,'Stock '+dateB];
+  const data = [header, ...rows.map(r => {
+    const { prod, hA, hB, pA, pB, diff, pct, type } = r;
+    return [
+      prod.c,
+      prod.m,
+      prod.n,
+      pA !== null ? pA : '',
+      pB !== null ? pB : '',
+      diff !== null ? +diff.toFixed(2) : '',
+      pct  !== null ? +pct.toFixed(1)  : (type==='new'?'Novo':'Removido'),
+      hB?.d ? '-'+hB.d+'%' : '',
+      hB ? (hB.s ? 'Sem Stock' : 'Disponível') : ''
+    ];
+  })];
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [14,18,45,14,14,12,12,12,14].map(w=>({wch:w}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Comparação');
+  XLSX.writeFile(wb, 'Comparacao_'+dateA+'_vs_'+dateB+'.xlsx');
 }
 
 // ============================================================
