@@ -308,15 +308,15 @@ td a:hover{text-decoration:underline}
   <table id="tbl-compare">
     <thead>
       <tr>
-        <th onclick="sortTable('tbl-compare',0)">Categoria</th>
-        <th onclick="sortTable('tbl-compare',1)">Marca</th>
-        <th onclick="sortTable('tbl-compare',2)">Produto</th>
-        <th onclick="sortTable('tbl-compare',3)">Preço A</th>
-        <th onclick="sortTable('tbl-compare',4)">Preço B</th>
-        <th onclick="sortTable('tbl-compare',5)">Diferença €</th>
-        <th onclick="sortTable('tbl-compare',6)">Variação %</th>
-        <th onclick="sortTable('tbl-compare',7)">Desconto B</th>
-        <th onclick="sortTable('tbl-compare',8)">Stock B</th>
+        <th onclick="sortCompare(0)" id="ch0">Categoria</th>
+        <th onclick="sortCompare(1)" id="ch1">Marca</th>
+        <th onclick="sortCompare(2)" id="ch2">Produto</th>
+        <th onclick="sortCompare(3)" id="ch3">Preço A</th>
+        <th onclick="sortCompare(4)" id="ch4">Preço B</th>
+        <th onclick="sortCompare(5)" id="ch5">Diferença €</th>
+        <th onclick="sortCompare(6)" id="ch6">Variação %</th>
+        <th onclick="sortCompare(7)" id="ch7">Desconto B</th>
+        <th onclick="sortCompare(8)" id="ch8">Stock B</th>
       </tr>
     </thead>
     <tbody id="tbody-compare"></tbody>
@@ -398,6 +398,7 @@ const GENERATED = "TIMESTAMP_VAL";
 const PAGE_SIZE = 50;
 let sortState = {};
 let prodSort = { col: null, dir: 'asc' };
+let cmpSort  = { col: null, dir: 'asc' };
 let currentPage = { produtos: 1, compare: 1 };
 let evoChart = null;
 
@@ -648,6 +649,18 @@ function _renderProductsPage() {
 // TAB: COMPARAR
 // ============================================================
 function renderCompare() {
+  cmpSort = { col: null, dir: 'asc' };
+  currentPage.compare = 1;
+  _renderComparePage();
+}
+
+function sortCompare(col) {
+  if (cmpSort.col === col) {
+    cmpSort.dir = cmpSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    cmpSort.col = col;
+    cmpSort.dir = 'asc';
+  }
   currentPage.compare = 1;
   _renderComparePage();
 }
@@ -694,8 +707,30 @@ function _renderComparePage() {
     rows.push({ prod, hA, hB, pA, pB, diff, pct, type });
   });
 
-  // Sort by abs diff desc by default
-  rows.sort((a,b) => Math.abs(b.diff||0) - Math.abs(a.diff||0));
+  // Ordenação: coluna escolhida pelo utilizador, ou por defeito maior variação absoluta
+  if (cmpSort.col !== null) {
+    const col = cmpSort.col;
+    const asc = cmpSort.dir === 'asc';
+    rows.sort((a, b) => {
+      let va, vb;
+      if      (col===0) { va=a.prod.c;       vb=b.prod.c; }
+      else if (col===1) { va=a.prod.m;       vb=b.prod.m; }
+      else if (col===2) { va=a.prod.n;       vb=b.prod.n; }
+      else if (col===3) { va=a.pA??-999;     vb=b.pA??-999; }
+      else if (col===4) { va=a.pB??-999;     vb=b.pB??-999; }
+      else if (col===5) { va=a.diff??-999;   vb=b.diff??-999; }
+      else if (col===6) { va=a.pct??-999;    vb=b.pct??-999; }
+      else if (col===7) { va=a.hB?.d||0;     vb=b.hB?.d||0; }
+      else if (col===8) { va=a.hB?.s?1:0;    vb=b.hB?.s?1:0; }
+      if (typeof va==='string') return asc ? va.localeCompare(vb,'pt') : vb.localeCompare(va,'pt');
+      return asc ? va-vb : vb-va;
+    });
+  } else {
+    rows.sort((a,b) => Math.abs(b.diff||0) - Math.abs(a.diff||0));
+  }
+
+  // Actualizar indicadores visuais nos headers
+  for(let i=0;i<=8;i++){const th=document.getElementById('ch'+i);if(th){th.classList.remove('sorted-asc','sorted-desc');if(i===cmpSort.col)th.classList.add(cmpSort.dir==='asc'?'sorted-asc':'sorted-desc');}}
 
   // Cards
   const nDown    = rows.filter(r=>r.type==='down').length;
@@ -989,30 +1024,6 @@ function downloadExcel() {
   XLSX.writeFile(wb, filename);
 }
 
-function sortTable(tableId, colIdx) {
-  const key = tableId + '_' + colIdx;
-  const asc = sortState[key] !== 'asc';
-  sortState[key] = asc ? 'asc' : 'desc';
-
-  const table = document.getElementById(tableId);
-  const ths = table.querySelectorAll('th');
-  ths.forEach(th => { th.classList.remove('sorted-asc','sorted-desc'); });
-  ths[colIdx].classList.add(asc ? 'sorted-asc' : 'sorted-desc');
-
-  const tbody = table.querySelector('tbody');
-  const rows  = Array.from(tbody.querySelectorAll('tr'));
-
-  rows.sort((a, b) => {
-    const aText = a.cells[colIdx]?.textContent?.trim() || '';
-    const bText = b.cells[colIdx]?.textContent?.trim() || '';
-    const aNum  = parseFloat(aText.replace(/[^0-9.\-]/g,''));
-    const bNum  = parseFloat(bText.replace(/[^0-9.\-]/g,''));
-    if(!isNaN(aNum) && !isNaN(bNum)) return asc ? aNum-bNum : bNum-aNum;
-    return asc ? aText.localeCompare(bText,'pt') : bText.localeCompare(aText,'pt');
-  });
-
-  rows.forEach(r => tbody.appendChild(r));
-}
 </script>
 </body>
 </html>
