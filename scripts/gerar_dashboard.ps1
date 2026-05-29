@@ -726,11 +726,12 @@ function _renderComparePage() {
       return asc ? va-vb : vb-va;
     });
   } else {
-    // Por defeito: novos e removidos no topo, depois maior variação absoluta
+    // Por defeito: novos (catálogo ou só em B) e removidos no topo, depois maior variação absoluta
     const typeOrder = { new:0, removed:1, down:2, up:3, eq:4 };
     rows.sort((a,b) => {
-      const to = (typeOrder[a.type]||4) - (typeOrder[b.type]||4);
-      if (to !== 0) return to;
+      const aOrder = (a.type==='new' || _isNovo(a.prod)) ? 0 : (typeOrder[a.type]||4);
+      const bOrder = (b.type==='new' || _isNovo(b.prod)) ? 0 : (typeOrder[b.type]||4);
+      if (aOrder !== bOrder) return aOrder - bOrder;
       return Math.abs(b.diff||0) - Math.abs(a.diff||0);
     });
   }
@@ -769,9 +770,10 @@ function _renderComparePage() {
     const pctStr  = pct!==null  ? '<span class="'+cls+'">'+(pct>=0?'+':'')+pct.toFixed(1)+'%</span>'  : '-';
     const dB  = hB?.d ? '<span class="badge badge-desc">-'+hB.d+'%</span>' : '-';
     const stB = hB ? (hB.s?'<span class="stock-no">Sem Stock</span>':'<span class="stock-ok">OK</span>') : '-';
-    const novoBadge     = type==='new'     ? ' <span class="badge badge-novo">NOVO</span>'     : '';
+    const isNovoCat = _isNovo(prod);
+    const novoBadge     = (type==='new' || isNovoCat) ? ' <span class="badge badge-novo">NOVO</span>'     : '';
     const removidoBadge = type==='removed' ? ' <span class="badge" style="background:#c0392b;color:#fff">REMOVIDO</span>' : '';
-    const rowCls = type==='new'?'style="background:#f0fff4"': type==='removed'?'style="background:#fff5f5"':'';
+    const rowCls = (type==='new'||isNovoCat)?'style="background:#f0fff4"': type==='removed'?'style="background:#fff5f5"':'';
     return '<tr '+rowCls+'>' +
       '<td>'+esc(prod.c)+'</td>' +
       '<td>'+esc(prod.m)+'</td>' +
