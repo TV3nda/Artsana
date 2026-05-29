@@ -726,7 +726,13 @@ function _renderComparePage() {
       return asc ? va-vb : vb-va;
     });
   } else {
-    rows.sort((a,b) => Math.abs(b.diff||0) - Math.abs(a.diff||0));
+    // Por defeito: novos e removidos no topo, depois maior variação absoluta
+    const typeOrder = { new:0, removed:1, down:2, up:3, eq:4 };
+    rows.sort((a,b) => {
+      const to = (typeOrder[a.type]||4) - (typeOrder[b.type]||4);
+      if (to !== 0) return to;
+      return Math.abs(b.diff||0) - Math.abs(a.diff||0);
+    });
   }
 
   // Actualizar indicadores visuais nos headers
@@ -760,13 +766,16 @@ function _renderComparePage() {
     const prA = pA!==null ? fmt(pA) : '<span class="price-up">—</span>';
     const prB = pB!==null ? fmt(pB) : '<span class="price-up">—</span>';
     const diffStr = diff!==null ? '<span class="'+cls+'">'+(diff>=0?'+':'')+diff.toFixed(2)+'€</span>' : '-';
-    const pctStr  = pct!==null  ? '<span class="'+cls+'">'+(pct>=0?'+':'')+pct.toFixed(1)+'%</span>'  : (type==='new'?'<span class="price-dn">Novo</span>':'<span class="price-up">Removido</span>');
+    const pctStr  = pct!==null  ? '<span class="'+cls+'">'+(pct>=0?'+':'')+pct.toFixed(1)+'%</span>'  : '-';
     const dB  = hB?.d ? '<span class="badge badge-desc">-'+hB.d+'%</span>' : '-';
     const stB = hB ? (hB.s?'<span class="stock-no">Sem Stock</span>':'<span class="stock-ok">OK</span>') : '-';
-    return '<tr>' +
+    const novoBadge     = type==='new'     ? ' <span class="badge badge-novo">NOVO</span>'     : '';
+    const removidoBadge = type==='removed' ? ' <span class="badge" style="background:#c0392b;color:#fff">REMOVIDO</span>' : '';
+    const rowCls = type==='new'?'style="background:#f0fff4"': type==='removed'?'style="background:#fff5f5"':'';
+    return '<tr '+rowCls+'>' +
       '<td>'+esc(prod.c)+'</td>' +
       '<td>'+esc(prod.m)+'</td>' +
-      '<td><a href="'+esc(prod.u)+'" target="_blank">'+esc(prod.n)+'</a></td>' +
+      '<td><a href="'+esc(prod.u)+'" target="_blank">'+esc(prod.n)+'</a>'+novoBadge+removidoBadge+'</td>' +
       '<td>'+prA+'</td><td>'+prB+'</td>' +
       '<td>'+diffStr+'</td><td>'+pctStr+'</td>' +
       '<td>'+dB+'</td><td>'+stB+'</td>' +
