@@ -128,112 +128,154 @@ $html = @'
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wells Dashboard</title>
+<title>Wells Intelligence · Monitor de Preços</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,sans-serif;background:#f0f4f8;color:#333;font-size:14px}
-header{background:#1a5276;color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
-header h1{font-size:20px;font-weight:bold}
-header .meta{font-size:12px;opacity:.8}
-nav{background:#2874a6;display:flex;gap:2px;padding:0 24px}
-nav button{background:none;border:none;color:#cce;padding:12px 20px;cursor:pointer;font-size:14px;border-bottom:3px solid transparent}
-nav button.active{color:#fff;border-bottom-color:#f39c12;font-weight:bold}
-nav button:hover{color:#fff;background:rgba(255,255,255,.1)}
-.tab{display:none;padding:20px 24px}
+:root{
+  --teal:#008eaa;
+  --teal-d:#006d85;
+  --teal-dd:#005e73;
+  --teal-dim:#e0f5f8;
+  --teal-mid:#b3e4ed;
+  --green:#0d9488;
+  --green-dim:#ccfbf1;
+  --red:#e11d48;
+  --red-dim:#ffe4e6;
+  --bg:#f4fafb;
+  --surface:#fff;
+  --border:#d1edf2;
+  --text:#0f2d35;
+  --text-2:#4a7280;
+  --text-3:#93b8c0;
+  --radius:10px;
+  --shadow:0 1px 3px rgba(0,71,85,.07),0 1px 2px rgba(0,71,85,.05);
+  --shadow-md:0 4px 12px rgba(0,71,85,.1);
+}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+header{background:var(--teal);color:#fff;padding:12px 32px 14px;display:flex;align-items:flex-end;justify-content:space-between;min-height:100px;flex-shrink:0;position:relative;overflow:hidden}
+header::before{content:'';position:absolute;right:-60px;top:-60px;width:260px;height:260px;border-radius:50%;background:rgba(255,255,255,.07);pointer-events:none}
+header::after{content:'';position:absolute;right:140px;bottom:-70px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.04);pointer-events:none}
+.hdr-left{display:flex;align-items:flex-end;gap:10px;position:relative;z-index:1}
+.hdr-logo{height:74px;flex-shrink:0;filter:brightness(0) invert(1)}
+.hdr-sub{font-size:11px;color:rgba(255,255,255,.7);letter-spacing:.04em;font-weight:400;line-height:1;white-space:nowrap;text-transform:uppercase}
+.hdr-right{font-size:11px;color:rgba(255,255,255,.55);text-align:right;line-height:1.5;position:relative;z-index:1}
+nav{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 32px;box-shadow:0 2px 6px rgba(0,71,85,.06)}
+nav button{background:none;border:none;color:var(--text-2);padding:15px 18px;cursor:pointer;font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;font-family:inherit;letter-spacing:.01em}
+nav button.active{color:var(--teal-d);border-bottom-color:var(--teal);font-weight:600}
+nav button:hover:not(.active){color:var(--text);background:var(--teal-dim)}
+.tab{display:none;padding:24px 32px}
 .tab.active{display:block}
-.filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;background:#fff;padding:14px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
-.filters label{font-size:12px;color:#555;display:flex;flex-direction:column;gap:3px}
-.filters select,.filters input{padding:6px 10px;border:1px solid #ccc;border-radius:4px;font-size:13px;min-width:140px}
+.filters{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:22px;background:var(--surface);padding:18px 22px;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border)}
+.filters label{font-size:11px;color:var(--text-2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;display:flex;flex-direction:column;gap:6px}
+.filters select,.filters input[type=text],.filters input[type=date]{padding:8px 11px;border:1px solid var(--border);border-radius:7px;font-size:13px;min-width:140px;background:var(--surface);color:var(--text);font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s}
+.filters select:focus,.filters input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,142,170,.12)}
 .filters input[type=text]{min-width:200px}
-.filters input[type=checkbox]{width:16px;height:16px;margin-top:4px}
-.btn{background:#2874a6;color:#fff;border:none;padding:8px 18px;border-radius:4px;cursor:pointer;font-size:13px}
-.btn:hover{background:#1a5276}
-.btn-compare{background:#e67e22}.btn-compare:hover{background:#ca6f1e}
-table{width:100%;border-collapse:collapse;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);border-radius:8px;overflow:hidden}
-th{background:#2874a6;color:#fff;padding:10px 8px;text-align:left;font-size:12px;white-space:nowrap;cursor:pointer;user-select:none}
-th:hover{background:#1a5276}
-th.sorted-asc::after{content:" ▲"}
-th.sorted-desc::after{content:" ▼"}
-td{padding:8px;border-bottom:1px solid #eee;font-size:12px}
+.filters input[type=checkbox]{width:15px;height:15px;margin-top:3px;accent-color:var(--teal)}
+.btn{background:var(--teal-d);color:#fff;border:none;padding:8px 18px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;transition:background .15s;letter-spacing:.01em}
+.btn:hover{background:var(--teal-dd)}
+.btn-compare{background:var(--teal)}.btn-compare:hover{background:var(--teal-d)}
+table{width:100%;border-collapse:collapse;background:var(--surface);box-shadow:var(--shadow);border-radius:var(--radius);overflow:hidden}
+th{background:var(--teal-dim);color:var(--teal-d);padding:11px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;cursor:pointer;user-select:none;border-bottom:1px solid var(--teal-mid)}
+th:hover{background:#c8eef5;color:var(--teal-dd)}
+th.sorted-asc::after{content:" ↑";opacity:.6}
+th.sorted-desc::after{content:" ↓";opacity:.6}
+td{padding:12px 14px;border-bottom:1px solid var(--border);font-size:13px;line-height:1.45;vertical-align:middle}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:#eaf4ff}
-td a{color:#2980b9;text-decoration:none}
-td a:hover{text-decoration:underline}
-.badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:bold}
-.badge-desc{background:#fdebd0;color:#c0392b}
-.badge-bs{background:#fef9e7;color:#d4ac0d}
-.badge-eo{background:#eaf2ff;color:#2471a3}
-.badge-novo{background:#e9f7ef;color:#1e8449}
-.stock-ok{color:#1e8449;font-weight:bold}
-.stock-no{color:#c0392b;font-weight:bold}
-.price-up{color:#c0392b;font-weight:bold}
-.price-dn{color:#1e8449;font-weight:bold}
-.price-eq{color:#888}
-.summary-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-.card{background:#fff;border-radius:8px;padding:14px 20px;box-shadow:0 1px 3px rgba(0,0,0,.1);min-width:140px;text-align:center}
-.card .val{font-size:26px;font-weight:bold;color:#1a5276}
-.card .lbl{font-size:11px;color:#888;margin-top:2px}
-.chart-wrap{background:#fff;border-radius:8px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.1);margin-top:16px}
+tbody tr:hover td{background:#f0fafb}
+td a{color:var(--teal-d);text-decoration:none;font-weight:500}
+td a:hover{color:var(--teal);text-decoration:underline}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.01em}
+.badge-desc{background:var(--red-dim);color:var(--red)}
+.badge-bs{background:var(--teal-dim);color:var(--teal-d)}
+.badge-eo{background:var(--teal-dim);color:var(--teal-d)}
+.badge-novo{background:var(--green-dim);color:var(--green)}
+.stock-ok{color:var(--green);font-weight:600}
+.stock-no{color:var(--red);font-weight:600}
+.price-up{color:var(--red);font-weight:600}
+.price-dn{color:var(--green);font-weight:600}
+.price-eq{color:var(--text-3)}
+.summary-cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+.card{background:var(--surface);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow);border:1px solid var(--border);min-width:140px;text-align:center;flex:1;border-top:3px solid var(--teal);transition:box-shadow .15s,transform .15s}
+.card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.card .val{font-size:30px;font-weight:800;color:var(--teal-d);letter-spacing:-.03em;line-height:1.1}
+.card .lbl{font-size:10px;color:var(--text-2);margin-top:7px;font-weight:600;text-transform:uppercase;letter-spacing:.07em}
+.chart-wrap{background:var(--surface);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);border:1px solid var(--border);margin-top:18px}
 .chart-wrap canvas{max-height:320px}
 .compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-.info{color:#666;font-style:italic;padding:20px;text-align:center}
-#tbl-count{font-size:12px;color:#666;margin-bottom:8px}
-.pagination{display:flex;gap:6px;margin-top:12px;align-items:center;flex-wrap:wrap}
-.pagination button{padding:5px 10px;border:1px solid #ccc;background:#fff;border-radius:4px;cursor:pointer;font-size:12px}
-.pagination button.active{background:#2874a6;color:#fff;border-color:#2874a6}
-.pagination button:hover:not(.active){background:#eee}
-.evo-cards-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
-.evo-card{display:flex;align-items:center;gap:10px;padding:9px 13px;background:#2c3e50;border:2px solid transparent;border-radius:8px;cursor:pointer;transition:all .18s;min-width:210px;max-width:300px;font-size:13px}
-.evo-card:hover{background:#34495e}
-.evo-card.selected{border-color:var(--ec,#2874a6);background:#1a252f}
-.evo-dot{width:10px;height:10px;border-radius:50%;background:#555;flex-shrink:0;transition:background .18s}
-.evo-card.selected .evo-dot{background:var(--ec,#2874a6)}
+.info{color:var(--text-3);font-style:italic;padding:56px;text-align:center;font-size:14px}
+.insight-box{background:var(--surface);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:24px}
+.insight-box h2{font-size:16px;font-weight:700;color:var(--teal-d);margin:0 0 16px;letter-spacing:-.01em}
+.insight-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:6px}
+.insight-card{border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:8px;padding:18px 20px;background:var(--surface)}
+.insight-card h3{font-size:11px;color:var(--teal-d);margin:0 0 12px;text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+.insight-card ul{padding-left:18px;margin:0}
+.insight-card li{font-size:13px;line-height:1.7;margin-bottom:10px;padding-left:2px;color:var(--text)}
+.insight-card li:last-child{margin-bottom:0}
+.insight-full{grid-column:1/-1}
+.copy-source{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+.section-title{font-size:11px;font-weight:700;color:var(--teal-d);margin:30px 0 12px;text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:10px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.note{font-size:12px;color:var(--text-2);margin-bottom:16px;line-height:1.65;background:var(--teal-dim);padding:10px 14px;border-radius:7px;border-left:3px solid var(--teal)}
+#tbl-count,#tbl-count-cmp{font-size:12px;color:var(--text-2);margin-bottom:12px;font-weight:500}
+.pagination{display:flex;gap:4px;margin-top:16px;align-items:center;flex-wrap:wrap}
+.pagination button{padding:5px 11px;border:1px solid var(--border);background:var(--surface);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text-2);font-family:inherit;transition:all .15s}
+.pagination button.active{background:var(--teal-d);color:#fff;border-color:var(--teal-d)}
+.pagination button:hover:not(.active){background:var(--teal-dim)}
+.evo-cards-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.evo-card{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#0f2d35;border:2px solid transparent;border-radius:8px;cursor:pointer;transition:all .18s;min-width:210px;max-width:300px;font-size:13px}
+.evo-card:hover{background:#1a3f4a}
+.evo-card.selected{border-color:var(--ec,var(--teal));background:#092028}
+.evo-dot{width:10px;height:10px;border-radius:50%;background:#2a5563;flex-shrink:0;transition:background .18s}
+.evo-card.selected .evo-dot{background:var(--ec,var(--teal))}
 .evo-info{flex:1;min-width:0}
-.evo-brand{font-size:11px;color:#aaa;display:block}
-.evo-name{font-size:12px;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
-.evo-price{font-size:13px;font-weight:bold;color:#5dade2;white-space:nowrap;text-align:right}
-.evo-sel-bar{display:flex;align-items:center;gap:12px;padding:9px 14px;background:#1a3a4a;border-radius:8px;margin-bottom:10px;font-size:13px;color:#ccc}
+.evo-brand{font-size:11px;color:#6fa8b5;display:block}
+.evo-name{font-size:12px;color:#c8e8ed;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.evo-price{font-size:13px;font-weight:700;color:#4dd4e8;white-space:nowrap;text-align:right}
+.evo-sel-bar{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#0f2d35;border-radius:8px;margin-bottom:12px;font-size:13px;color:#6fa8b5}
 .evo-sel-bar span{flex:1}
 .brand-grid{display:flex;gap:14px;align-items:flex-start;padding-bottom:12px}
 #marcas-grid{overflow-x:auto}
-.brand-arrows{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.brand-arrow-btn{background:#2874a6;color:#fff;border:none;border-radius:6px;width:36px;height:36px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;user-select:none}
-.brand-arrow-btn:hover{background:#1a5276}
-#marcas-range{width:100%;accent-color:#2874a6;cursor:pointer;margin-bottom:6px;display:block}
-.brand-col{min-width:190px;max-width:230px;flex-shrink:0;background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1);overflow:hidden}
-.brand-hdr{background:#2874a6;color:#fff;padding:10px 14px;font-weight:bold;font-size:13px;display:flex;justify-content:space-between;align-items:center}
-.brand-hdr .brand-count{font-size:11px;opacity:.8;font-weight:normal}
-.brand-prod{padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:12px}
+.brand-arrows{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.brand-arrow-btn{background:var(--teal-d);color:#fff;border:none;border-radius:6px;width:34px;height:34px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;user-select:none}
+.brand-arrow-btn:hover{background:var(--teal-dd)}
+#marcas-range{width:100%;accent-color:var(--teal);cursor:pointer;margin-bottom:8px;display:block}
+.brand-col{min-width:190px;max-width:230px;flex-shrink:0;background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;border:1px solid var(--border)}
+.brand-hdr{background:var(--teal-d);color:#fff;padding:11px 14px;font-weight:600;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+.brand-hdr .brand-count{font-size:11px;opacity:.6;font-weight:400}
+.brand-prod{padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px}
 .brand-prod:last-child{border-bottom:none}
-.brand-prod:hover{background:#f7fbff}
-.brand-prod-name{display:block;color:#1a5276;font-weight:600;margin-bottom:5px;line-height:1.3;text-decoration:none}
-.brand-prod-name:hover{text-decoration:underline}
+.brand-prod:hover{background:var(--teal-dim)}
+.brand-prod-name{display:block;color:var(--teal-d);font-weight:600;margin-bottom:4px;line-height:1.3;text-decoration:none}
+.brand-prod-name:hover{color:var(--teal);text-decoration:underline}
 .brand-prod-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.brand-price{color:#2874a6;font-weight:bold}
-.brand-price-old{color:#999;text-decoration:line-through;font-size:11px}
+.brand-price{color:var(--teal-d);font-weight:700}
+.brand-price-old{color:var(--text-3);text-decoration:line-through;font-size:11px}
 </style>
 </head>
 <body>
 
 <header>
-  <div>
-    <h1>Wells.pt — Dashboard de Preços</h1>
-    <div class="meta">Categorias: Chupetas · Biberões · Bombas Tira Leite</div>
+  <div class="hdr-left">
+    <img class="hdr-logo" src="assets/Logo.png" alt="Wells Scraper">
+    <div class="hdr-sub">Chupetas · Biberões · Bombas Tira-Leite</div>
   </div>
-  <div class="meta" id="hdr-meta"></div>
+  <div class="hdr-right" id="hdr-meta"></div>
 </header>
 
 <nav>
-  <button class="active" onclick="showTab('produtos')">Produtos</button>
-  <button onclick="showTab('comparar')">Comparar Datas</button>
-  <button onclick="showTab('evolucao')">Evolução de Preços</button>
+  <button class="active" onclick="showTab('mensal')">Relatório Mensal</button>
+  <button onclick="showTab('produtos')">Produtos</button>
   <button onclick="showTab('marcas')">Por Marca</button>
+  <button onclick="showTab('evolucao')">Evolução de Preços</button>
+  <button onclick="showTab('comparar')">Comparar Datas</button>
 </nav>
 
 <!-- ===== TAB: PRODUTOS ===== -->
-<div id="tab-produtos" class="tab active">
+<div id="tab-produtos" class="tab">
   <div class="filters">
     <label>Data
       <select id="f-date" onchange="renderProducts()"></select>
@@ -382,6 +424,67 @@ td a:hover{text-decoration:underline}
   <div id="marcas-grid"></div>
 </div>
 
+<!-- ===== TAB: RELATORIO MENSAL ===== -->
+<div id="tab-mensal" class="tab active">
+  <div class="filters">
+    <label>Mês
+      <select id="mes-period" onchange="renderMonthlyReport()"></select>
+    </label>
+    <label>Categoria
+      <select id="mes-cat" onchange="renderMonthlyReport()"><option value="">Todas</option></select>
+    </label>
+    <label>Marca
+      <select id="mes-brand" onchange="renderMonthlyReport()"><option value="">Todas</option></select>
+    </label>
+    <label style="padding-top:18px">
+      <button class="btn" onclick="copyMonthlyText()">Copiar insights</button>
+    </label>
+    <label style="padding-top:18px">
+      <button class="btn" onclick="downloadMonthlyExcel()">Excel mensal</button>
+    </label>
+  </div>
+
+  <div class="summary-cards" id="cards-mensal"></div>
+
+  <div class="insight-box">
+    <h2>Insights do mês</h2>
+    <div id="monthly-insights"></div>
+    <textarea id="monthly-copy" class="copy-source" aria-hidden="true" tabindex="-1"></textarea>
+  </div>
+
+  <h2 class="section-title">Novidades do mês</h2>
+  <p class="note">Produtos nunca vistos antes no histórico. Esta leitura reflete o site Wells e deve ser cruzada com sell-out e conhecimento comercial.</p>
+  <table>
+    <thead><tr><th>Categoria</th><th>Marca</th><th>Produto</th><th>Primeiro dia</th><th>Preço</th><th>Desconto</th><th>Stock</th></tr></thead>
+    <tbody id="tbody-month-new"></tbody>
+  </table>
+
+  <h2 class="section-title">Promoções do mês</h2>
+  <table>
+    <thead><tr><th>Categoria</th><th>Marca</th><th>Produto</th><th>Dias promo</th><th>Máx desconto</th><th>Preço mínimo</th><th>1ª promo observada</th></tr></thead>
+    <tbody id="tbody-month-promos"></tbody>
+  </table>
+
+  <h2 class="section-title">Intensidade promocional por categoria</h2>
+  <table>
+    <thead><tr><th>Categoria</th><th>Refs ativas</th><th>Novidades</th><th>Refs em promo</th><th>Cobertura promo</th><th>Desconto médio</th><th>Máx desconto</th></tr></thead>
+    <tbody id="tbody-month-categories"></tbody>
+  </table>
+
+  <h2 class="section-title">Intensidade promocional por marca</h2>
+  <table>
+    <thead><tr><th>Marca</th><th>Refs ativas</th><th>Novidades</th><th>Refs em promo</th><th>Cobertura promo</th><th>Desconto médio</th><th>Máx desconto</th></tr></thead>
+    <tbody id="tbody-month-brands"></tbody>
+  </table>
+
+  <h2 class="section-title">Presença online: desapareceram no fim do mês</h2>
+  <p class="note">Não equivale automaticamente a saída de loja física; é um sinal de presença online a investigar quando for relevante.</p>
+  <table>
+    <thead><tr><th>Categoria</th><th>Marca</th><th>Produto</th><th>Último dia visto</th><th>Último preço</th><th>Último desconto</th></tr></thead>
+    <tbody id="tbody-month-removed"></tbody>
+  </table>
+</div>
+
 <script>
 // ============================================================
 // DADOS EMBUTIDOS
@@ -401,6 +504,7 @@ let prodSort = { col: null, dir: 'asc' };
 let cmpSort  = { col: null, dir: 'asc' };
 let currentPage = { produtos: 1, compare: 1 };
 let evoChart = null;
+let monthlyData = null;
 
 // ============================================================
 // TAB: POR MARCA
@@ -495,16 +599,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if(i===0) oB.selected=true;
   });
 
-  ['f-cat','cmp-cat','evo-cat','marca-cat'].forEach(id => {
+  ['f-cat','cmp-cat','evo-cat','marca-cat','mes-cat'].forEach(id => {
     const sel = document.getElementById(id);
     CATS.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
   });
 
   const fBrand = document.getElementById('f-brand');
-  BRANDS.forEach(b => { const o=document.createElement('option'); o.value=b; o.textContent=b; fBrand.appendChild(o); });
+  const mesBrand = document.getElementById('mes-brand');
+  BRANDS.forEach(b => {
+    const o=document.createElement('option'); o.value=b; o.textContent=b; fBrand.appendChild(o);
+    const m=document.createElement('option'); m.value=b; m.textContent=b; mesBrand.appendChild(m);
+  });
+
+  const mesPeriod = document.getElementById('mes-period');
+  const months = [...new Set(DATES.map(d => d.slice(0,7)))].sort().reverse();
+  months.forEach(m => { const o=document.createElement('option'); o.value=m; o.textContent=monthLabel(m); mesPeriod.appendChild(o); });
 
   renderProducts();
   searchProducts();
+  renderMonthlyReport();
 
   // Range slider <-> grid (sem loop: .value= não dispara 'input')
   const _grid  = document.getElementById('marcas-grid');
@@ -523,6 +636,12 @@ function showTab(name) {
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   event.target.classList.add('active');
+  if (name === 'marcas') renderMarcas();
+  if (name === 'comparar') renderCompare();
+  if (name === 'evolucao' && !document.getElementById('evo-search').value) {
+    document.getElementById('evo-search').value = 'Chicco';
+    searchProducts();
+  }
 }
 
 // ============================================================
@@ -963,6 +1082,302 @@ function updateEvoChart() {
 function selectProduct(id) { toggleEvoProduct(id); }
 
 // ============================================================
+// TAB: RELATORIO MENSAL
+// ============================================================
+function monthLabel(m) {
+  const nomes = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const [y, mo] = m.split('-');
+  return nomes[Number(mo)-1] + ' de ' + y;
+}
+
+function getMonthDates(month) {
+  return DATES.filter(d => d.startsWith(month)).sort();
+}
+
+function firstSeenDate(prod) {
+  const ds = Object.keys(prod.h).sort();
+  return ds.length ? ds[0] : null;
+}
+
+function lastRecordInDates(prod, dates) {
+  for(let i=dates.length-1; i>=0; i--) {
+    const d = dates[i];
+    if(prod.h[d]) return { date:d, h:prod.h[d] };
+  }
+  return null;
+}
+
+function hasRecordInDates(prod, dates) {
+  return dates.some(d => !!prod.h[d]);
+}
+
+function productPassesMonthlyFilters(prod, cat, brand) {
+  if(cat && prod.c !== cat) return false;
+  if(brand && prod.m !== brand) return false;
+  return true;
+}
+
+function renderMonthlyReport() {
+  const month = document.getElementById('mes-period').value;
+  const cat   = document.getElementById('mes-cat').value;
+  const brand = document.getElementById('mes-brand').value;
+  const dates = getMonthDates(month);
+
+  if(!month || !dates.length) {
+    document.getElementById('cards-mensal').innerHTML = '';
+    document.getElementById('monthly-copy').value = '';
+    document.getElementById('monthly-insights').innerHTML = '';
+    return;
+  }
+
+  const firstDate = dates[0];
+  const lastDate  = dates[dates.length-1];
+  const active = ALL_PRODUCTS
+    .filter(p => productPassesMonthlyFilters(p, cat, brand))
+    .filter(p => hasRecordInDates(p, dates));
+
+  const newProducts = active
+    .filter(p => firstSeenDate(p)?.startsWith(month))
+    .map(p => {
+      const first = firstSeenDate(p);
+      return { prod:p, first:first, h:p.h[first] };
+    })
+    .sort((a,b) => a.prod.c.localeCompare(b.prod.c,'pt') || a.prod.m.localeCompare(b.prod.m,'pt') || a.first.localeCompare(b.first));
+
+  const promos = active.map(p => {
+    const promoDates = dates.filter(d => p.h[d] && p.h[d].d);
+    if(!promoDates.length) return null;
+    const discounts = promoDates.map(d => Number(p.h[d].d || 0));
+    const priceDates = dates.filter(d => p.h[d] && p.h[d].p != null);
+    const prices = priceDates.map(d => Number(p.h[d].p));
+    const previousPromo = Object.keys(p.h).some(d => d < firstDate && p.h[d].d);
+    return {
+      prod:p,
+      days: promoDates.length,
+      maxDisc: Math.max(...discounts),
+      avgDisc: discounts.reduce((a,b)=>a+b,0) / discounts.length,
+      minPrice: prices.length ? Math.min(...prices) : null,
+      firstPromo: promoDates[0],
+      newPromo: !previousPromo,
+      discountObs: discounts.length,
+      discountSum: discounts.reduce((a,b)=>a+b,0)
+    };
+  }).filter(Boolean).sort((a,b) => b.maxDisc-a.maxDisc || b.days-a.days);
+
+  const removed = active
+    .filter(p => !p.h[lastDate])
+    .map(p => ({ prod:p, last:lastRecordInDates(p, dates) }))
+    .filter(x => x.last)
+    .sort((a,b) => a.last.date.localeCompare(b.last.date) || a.prod.m.localeCompare(b.prod.m,'pt'));
+
+  const brandStats = {};
+  active.forEach(p => {
+    if(!brandStats[p.m]) brandStats[p.m] = { brand:p.m, active:0, newCount:0, promoRefs:0, promoDays:0, discSum:0, discObs:0, maxDisc:0 };
+    brandStats[p.m].active++;
+  });
+  newProducts.forEach(x => { if(brandStats[x.prod.m]) brandStats[x.prod.m].newCount++; });
+  promos.forEach(x => {
+    const s = brandStats[x.prod.m];
+    if(!s) return;
+    s.promoRefs++;
+    s.promoDays += x.days;
+    s.discSum += x.discountSum;
+    s.discObs += x.discountObs;
+    s.maxDisc = Math.max(s.maxDisc, x.maxDisc);
+  });
+  const brandRows = Object.values(brandStats).sort((a,b) => b.promoRefs-a.promoRefs || b.newCount-a.newCount || a.brand.localeCompare(b.brand,'pt'));
+
+  const categoryStats = {};
+  active.forEach(p => {
+    if(!categoryStats[p.c]) categoryStats[p.c] = { category:p.c, active:0, newCount:0, promoRefs:0, promoDays:0, discSum:0, discObs:0, maxDisc:0 };
+    categoryStats[p.c].active++;
+  });
+  newProducts.forEach(x => { if(categoryStats[x.prod.c]) categoryStats[x.prod.c].newCount++; });
+  promos.forEach(x => {
+    const s = categoryStats[x.prod.c];
+    if(!s) return;
+    s.promoRefs++;
+    s.promoDays += x.days;
+    s.discSum += x.discountSum;
+    s.discObs += x.discountObs;
+    s.maxDisc = Math.max(s.maxDisc, x.maxDisc);
+  });
+  const categoryRows = Object.values(categoryStats).sort((a,b) => b.promoRefs-a.promoRefs || a.category.localeCompare(b.category,'pt'));
+
+  monthlyData = { month, dates, active, newProducts, promos, removed, brandRows, categoryRows };
+
+  document.getElementById('cards-mensal').innerHTML =
+    card(active.length, 'Refs online observadas') +
+    card(newProducts.length, 'Novidades') +
+    card(promos.length, 'Refs em promoção') +
+    card(promos.reduce((m,p)=>Math.max(m,p.maxDisc),0)+'%', 'Maior desconto') +
+    card(removed.length, 'Ausentes no fim do período');
+
+  const insights = buildMonthlyInsights(month, dates, newProducts, promos, removed, brandRows, categoryRows, cat, brand);
+  document.getElementById('monthly-insights').innerHTML = renderMonthlyInsights(insights);
+  document.getElementById('monthly-copy').value = insightsToText(insights);
+
+  renderMonthlyTables(newProducts, promos, brandRows, categoryRows, removed);
+}
+
+function renderMonthlyTables(newProducts, promos, brandRows, categoryRows, removed) {
+  document.getElementById('tbody-month-new').innerHTML = newProducts.length ? newProducts.map(x =>
+    '<tr><td>'+esc(x.prod.c)+'</td><td>'+esc(x.prod.m)+'</td><td><a href="'+esc(x.prod.u)+'" target="_blank">'+esc(x.prod.n)+'</a></td><td>'+x.first+'</td><td>'+fmt(x.h.p)+'</td><td>'+(x.h.d?'-'+x.h.d+'%':'-')+'</td><td>'+(x.h.s?'Sem Stock':'Disponível')+'</td></tr>'
+  ).join('') : '<tr><td colspan="7" class="info">Sem novidades no período selecionado.</td></tr>';
+
+  document.getElementById('tbody-month-promos').innerHTML = promos.length ? promos.slice(0,120).map(x =>
+    '<tr><td>'+esc(x.prod.c)+'</td><td>'+esc(x.prod.m)+'</td><td><a href="'+esc(x.prod.u)+'" target="_blank">'+esc(x.prod.n)+'</a></td><td>'+x.days+'</td><td><span class="badge badge-desc">-'+x.maxDisc+'%</span></td><td>'+fmt(x.minPrice)+'</td><td>'+(x.newPromo?'Sim':'Não')+'</td></tr>'
+  ).join('') : '<tr><td colspan="7" class="info">Sem promoções no período selecionado.</td></tr>';
+
+  const _cov = (x,n) => x.promoRefs && n ? Math.round(x.promoDays/x.promoRefs/n*100)+'%' : '-';
+  document.getElementById('tbody-month-categories').innerHTML = categoryRows.length ? categoryRows.map(x =>
+    '<tr><td>'+esc(x.category)+'</td><td>'+x.active+'</td><td>'+x.newCount+'</td><td>'+x.promoRefs+'</td><td>'+_cov(x,monthlyData.dates.length)+'</td><td>'+(x.discObs?(x.discSum/x.discObs).toFixed(1)+'%':'-')+'</td><td>'+(x.maxDisc?x.maxDisc+'%':'-')+'</td></tr>'
+  ).join('') : '<tr><td colspan="7" class="info">Sem dados por categoria no período selecionado.</td></tr>';
+
+  document.getElementById('tbody-month-brands').innerHTML = brandRows.length ? brandRows.map(x =>
+    '<tr><td>'+esc(x.brand)+'</td><td>'+x.active+'</td><td>'+x.newCount+'</td><td>'+x.promoRefs+'</td><td>'+_cov(x,monthlyData.dates.length)+'</td><td>'+(x.discObs?(x.discSum/x.discObs).toFixed(1)+'%':'-')+'</td><td>'+(x.maxDisc?x.maxDisc+'%':'-')+'</td></tr>'
+  ).join('') : '<tr><td colspan="7" class="info">Sem dados no período selecionado.</td></tr>';
+
+  document.getElementById('tbody-month-removed').innerHTML = removed.length ? removed.map(x =>
+    '<tr><td>'+esc(x.prod.c)+'</td><td>'+esc(x.prod.m)+'</td><td><a href="'+esc(x.prod.u)+'" target="_blank">'+esc(x.prod.n)+'</a></td><td>'+x.last.date+'</td><td>'+fmt(x.last.h.p)+'</td><td>'+(x.last.h.d?'-'+x.last.h.d+'%':'-')+'</td></tr>'
+  ).join('') : '<tr><td colspan="6" class="info">Sem ausências no fim do período selecionado.</td></tr>';
+}
+
+function buildMonthlyInsights(month, dates, newProducts, promos, removed, brandRows, categoryRows, cat, brand) {
+  const periodo = monthLabel(month);
+  const scope = [cat || 'todas as categorias', brand ? 'marca '+brand : 'todas as marcas'].join(' / ');
+  const insights = [
+    {
+      title: 'Leitura geral',
+      items: [
+        'Período observado: ' + periodo + ' (' + scope + ').',
+        'Foram observadas ' + monthlyData.active.length + ' referências online no site Wells.',
+        'Esta leitura deve ser cruzada com sell-out, informação comercial e disponibilidade em loja física.'
+      ]
+    },
+    {
+      title: 'Novidades',
+      items: []
+    },
+    {
+      title: 'Promoções',
+      items: []
+    },
+    {
+      title: 'Watch outs',
+      items: []
+    }
+  ];
+
+  if(newProducts.length) {
+    const byCat = {};
+    newProducts.forEach(x => {
+      if(!byCat[x.prod.c]) byCat[x.prod.c] = {};
+      if(!byCat[x.prod.c][x.prod.m]) byCat[x.prod.c][x.prod.m] = [];
+      byCat[x.prod.c][x.prod.m].push(x.prod.n);
+    });
+    Object.keys(byCat).sort().forEach(c => {
+      const brandBits = Object.keys(byCat[c]).sort().map(b => {
+        const names = byCat[c][b].slice(0,4).map(shortProductName).join(', ');
+        const extra = byCat[c][b].length > 4 ? ' e mais ' + (byCat[c][b].length-4) + ' ref.' : '';
+        return b + ' (' + byCat[c][b].length + '): ' + names + extra;
+      });
+      insights[1].items.push(c + ': ' + brandBits.join('; ') + '.');
+    });
+  } else {
+    insights[1].items.push('Não foram identificadas novas referências no período selecionado.');
+  }
+
+  if(promos.length) {
+    const topPromos = promos.slice(0,3).map(p => p.prod.m + ' ' + shortProductName(p.prod.n) + ' (-' + p.maxDisc + '%)').join('; ');
+    const firstPromos = promos.filter(p => p.newPromo).length;
+    const avgPromo = promos.reduce((s,p)=>s+p.avgDisc,0) / promos.length;
+    insights[2].items.push('Foram observadas ' + promos.length + ' referências em promoção.');
+    insights[2].items.push('Maiores sinais promocionais: ' + topPromos + '.');
+    insights[2].items.push(firstPromos + ' referência(s) tiveram a primeira promoção observada no histórico disponível.');
+    insights[2].items.push('Desconto médio por referência promocionada: ' + avgPromo.toFixed(1) + '%.');
+    if(categoryRows.length) {
+      const categorySummary = categoryRows.map(c => {
+        const avg = c.discObs ? (c.discSum/c.discObs).toFixed(1) + '%' : '-';
+        return c.category + ': ' + c.promoRefs + ' refs em promo, max ' + (c.maxDisc || 0) + '%, desconto médio ' + avg;
+      }).join('; ');
+      insights[2].items.push('Por categoria: ' + categorySummary + '.');
+    }
+  } else {
+    insights[2].items.push('Não foram observadas promoções no período selecionado.');
+  }
+
+  if(removed.length) {
+    insights[3].items.push(removed.length + ' referência(s) observadas durante o mês não estavam presentes no último dia observado (' + dates[dates.length-1] + '). Tratar como sinal online a validar, não como confirmação de saída de loja física.');
+  } else {
+    insights[3].items.push('Não foram identificadas ausências relevantes no fim do período observado no site.');
+  }
+  insights[3].items.push('Confirmar impacto com dados de sell-out antes de retirar conclusões sobre performance de mercado.');
+
+  return insights;
+}
+
+function renderMonthlyInsights(sections) {
+  return '<div class="insight-grid">' + sections.map(sec =>
+    '<div class="insight-card">' +
+      '<h3>'+esc(sec.title)+'</h3>' +
+      '<ul>' + sec.items.map(item => '<li>'+esc(item)+'</li>').join('') + '</ul>' +
+    '</div>'
+  ).join('') + '</div>';
+}
+
+function insightsToText(sections) {
+  return sections.map(sec => sec.title + ':\n' + sec.items.map(item => '- ' + item).join('\n')).join('\n\n');
+}
+
+function shortProductName(name) {
+  return (name || '').replace(/\s+/g,' ').trim().substring(0,70);
+}
+
+function copyMonthlyText() {
+  const el = document.getElementById('monthly-copy');
+  const text = el.value;
+  try {
+    navigator.clipboard.writeText(text);
+    alert('Insights copiados.');
+  } catch(e) {
+    el.focus();
+    el.select();
+    document.execCommand('copy');
+    alert('Insights copiados.');
+  }
+}
+
+function downloadMonthlyExcel() {
+  if(!monthlyData) return;
+  const wb = XLSX.utils.book_new();
+
+  const novidades = [['Categoria','Marca','Produto','Primeiro dia','Preço','Desconto %','Stock','URL']];
+  monthlyData.newProducts.forEach(x => novidades.push([x.prod.c,x.prod.m,x.prod.n,x.first,x.h.p||'',x.h.d||'',x.h.s?'Sem Stock':'Disponível',x.prod.u]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(novidades), 'Novidades');
+
+  const promos = [['Categoria','Marca','Produto','Dias promo','Max desconto %','Preco minimo','Primeira promo observada','URL']];
+  monthlyData.promos.forEach(x => promos.push([x.prod.c,x.prod.m,x.prod.n,x.days,x.maxDisc,x.minPrice||'',x.newPromo?'Sim':'Não',x.prod.u]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(promos), 'Promocoes');
+
+  const _covXls = (x,n) => x.promoRefs && n ? Math.round(x.promoDays/x.promoRefs/n*100)/100 : '';
+  const _ndates = monthlyData.dates.length;
+  const marcas = [['Marca','Refs ativas','Novidades','Refs em promo','Cobertura promo','Desconto medio %','Max desconto %']];
+  monthlyData.brandRows.forEach(x => marcas.push([x.brand,x.active,x.newCount,x.promoRefs,_covXls(x,_ndates),x.discObs?Number((x.discSum/x.discObs).toFixed(1)):'',x.maxDisc||'']));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(marcas), 'Marcas');
+
+  const categorias = [['Categoria','Refs ativas','Novidades','Refs em promo','Cobertura promo','Desconto medio %','Max desconto %']];
+  monthlyData.categoryRows.forEach(x => categorias.push([x.category,x.active,x.newCount,x.promoRefs,_covXls(x,_ndates),x.discObs?Number((x.discSum/x.discObs).toFixed(1)):'',x.maxDisc||'']));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(categorias), 'Categorias');
+
+  const ausentes = [['Categoria','Marca','Produto','Ultimo dia visto','Ultimo preco','Ultimo desconto %','URL']];
+  monthlyData.removed.forEach(x => ausentes.push([x.prod.c,x.prod.m,x.prod.n,x.last.date,x.last.h.p||'',x.last.h.d||'',x.prod.u]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ausentes), 'Presenca online');
+
+  XLSX.writeFile(wb, 'Relatorio_Wells_' + monthlyData.month + '.xlsx');
+}
+
+// ============================================================
 // UTILITARIOS
 // ============================================================
 function fmt(v) { return v!=null ? '€'+Number(v).toFixed(2) : '-'; }
@@ -1050,27 +1465,3 @@ $html = $html -replace 'TIMESTAMP_VAL', $Timestamp
 $html | Out-File -FilePath $DashboardOut -Encoding UTF8
 Write-Host ("Dashboard gerado: " + $DashboardOut) -ForegroundColor Green
 Write-Host ("  Produtos: " + $products.Count + " | Datas: " + $dates.Count) -ForegroundColor Green
-
-# ---------------------------------------------------------------------------
-# Publicar no GitHub Pages
-# ---------------------------------------------------------------------------
-$RepoDir = "C:\Claude Code\github\Artsana"
-if (Test-Path $RepoDir) {
-    try {
-        # 1. Copiar o dashboard para a pasta do repositorio
-        Copy-Item $DashboardOut (Join-Path $RepoDir "index.html") -Force
-
-        # 2. Commit e push
-        Set-Location $RepoDir
-        git add index.html 2>&1 | Out-Null
-        $commitMsg = "Dashboard atualizado - " + (Get-Date -Format "yyyy-MM-dd HH:mm")
-        git commit -m $commitMsg 2>&1 | Out-Null
-        git push origin master 2>&1 | Out-Null
-
-        Write-Host "  Publicado em: https://tv3nda.github.io/Artsana" -ForegroundColor Cyan
-    } catch {
-        Write-Host ("  AVISO: Publicacao GitHub falhou - " + $_.Exception.Message) -ForegroundColor Red
-    } finally {
-        Set-Location $PSScriptRoot
-    }
-}

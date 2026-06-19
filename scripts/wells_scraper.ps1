@@ -158,6 +158,18 @@ function Parse-Products {
     param([string]$Html, [string]$Category)
 
     $products = New-Object System.Collections.ArrayList
+
+    # Construir tabela de stock por produto: data-pid -> data-product-stock.
+    # Este sinal tem sido mais fiavel do que o campo "notify" do JSON.
+    $stockTable = @{}
+    $stockMatches = [regex]::Matches($Html, 'data-pid="(\d+)"')
+    foreach ($sm in $stockMatches) {
+        $pid   = $sm.Groups[1].Value
+        $ahead = $Html.Substring($sm.Index, [Math]::Min(12000, $Html.Length - $sm.Index))
+        $sqm   = [regex]::Match($ahead, 'data-product-stock="(\d+)"')
+        if ($sqm.Success) { $stockTable[$pid] = [int]$sqm.Groups[1].Value }
+    }
+
     $tilePattern = 'data-product-tile-impression="(\{[^"]{20,3000}\})"'
     $tiles = [regex]::Matches($Html, $tilePattern)
 
@@ -170,7 +182,6 @@ function Parse-Products {
         $priceMatch  = [regex]::Match($jsonRaw, '"price"\s*:\s*([\d.]+)')
         $pvpMatch    = [regex]::Match($jsonRaw, '"pvp"\s*:\s*([\d.]+)')
         $urlMatch    = [regex]::Match($jsonRaw, '"url"\s*:\s*"([^"]+)"')
-        $notifyMatch = [regex]::Match($jsonRaw, '"notify"\s*:\s*(true|false)')
 
         if (-not $nameMatch.Success -or -not $priceMatch.Success) { continue }
 
@@ -184,9 +195,9 @@ function Parse-Products {
         $price    = $priceRaw
         $pvpr     = if ($pvprRaw -ne $priceRaw) { $pvprRaw } else { $null }
 
-        # Stock: notify=true significa produto sem stock (botao "Avise-me" activo na Wells)
-        # notify=false é inconclusivo mas assume-se disponivel por defeito
-        $stock = if ($notifyMatch.Success -and $notifyMatch.Groups[1].Value -eq "true") { "Sem Stock" } else { "Disponivel" }
+        # Stock via data-product-stock; se nao existir, assume disponivel para evitar falsos "sem stock".
+        $stockQty = if ($stockTable.ContainsKey($prodId)) { $stockTable[$prodId] } else { 1 }
+        $stock    = if ($stockQty -eq 0) { "Sem Stock" } else { "Disponivel" }
 
         $discount = $null
         if ($null -ne $pvpr -and $pvpr -gt $price -and $pvpr -gt 0) {
@@ -252,6 +263,68 @@ function Fetch-Page {
     }
 }
 
+# ---------------------------------------------------------------------------
+# Validacao e persistencia segura
+# ---------------------------------------------------------------------------
+function Get-UniqueProducts {
+    param($Products)
+
+    $seen = @{}
+    $unique = New-Object System.Collections.ArrayList
+    foreach ($p in $Products) {
+        if (-not $p.ProdID) { continue }
+        if (-not $seen.ContainsKey($p.ProdID)) {
+            $seen[$p.ProdID] = $true
+            [void]$unique.Add($p)
+        }
+    }
+    return $unique
+}
+
+function Test-ScrapeQuality {
+    param($Products, $Summary)
+
+    $minTotalProducts = 300
+    if ($Products.Count -lt $minTotalProducts) {
+        throw ("Scraping incompleto: apenas " + $Products.Count + " produtos encontrados; minimo esperado " + $minTotalProducts + ".")
+    }
+
+    $missingCriticalFields = @($Products | Where-Object {
+        -not $_.ProdID -or -not $_.Produto -or $null -eq $_.Preco
+    }).Count
+    if ($missingCriticalFields -gt 0) {
+        throw ("Scraping invalido: " + $missingCriticalFields + " produtos sem ProdID, nome ou preco.")
+    }
+
+    foreach ($cat in $CATEGORIES) {
+        if (-not $Summary.ContainsKey($cat.Name)) {
+            throw ("Scraping invalido: categoria sem resumo - " + $cat.Name)
+        }
+        if ($Summary[$cat.Name].Total -lt 10) {
+            throw ("Scraping invalido: categoria com poucos produtos - " + $cat.Name + " (" + $Summary[$cat.Name].Total + ")")
+        }
+    }
+}
+
+function Save-HistorySnapshot {
+    param($Products)
+
+    if (-not (Test-Path $CsvMaster)) {
+        $Products | Export-Csv -Path $CsvMaster -NoTypeInformation -Encoding UTF8 -Delimiter ";"
+        return
+    }
+
+    $existing = Import-Csv -Path $CsvMaster -Delimiter ";" -Encoding UTF8
+    $keptRows = @($existing | Where-Object { $_.Data -ne $Date })
+    $combined = @()
+    if ($keptRows.Count -gt 0) { $combined += $keptRows }
+    $combined += @($Products)
+
+    $combined |
+        Sort-Object Data, Categoria, Marca, Produto |
+        Export-Csv -Path $CsvMaster -NoTypeInformation -Encoding UTF8 -Delimiter ";"
+}
+
 # ===========================================================================
 # EXECUCAO PRINCIPAL
 # ===========================================================================
@@ -273,17 +346,6 @@ foreach ($cat in $CATEGORIES) {
     do {
         $html = Fetch-Page -CgId $cat.CgId -Start $start
         if ($null -eq $html -or $html.Length -lt 100) { break }
-
-        # DEBUG: mostrar JSON do 1o tile para diagnostico de stock (aparece nos logs do GitHub Actions)
-        if ($start -eq 0 -and $pages -eq 0) {
-            $dbgM = [regex]::Match($html, 'data-product-tile-impression="(\{[^"]{20,3000}\})"')
-            if ($dbgM.Success) {
-                $dbgJ = $dbgM.Groups[1].Value -replace '&quot;','"' -replace '&amp;','&'
-                Write-Host ("[DEBUG-STOCK] " + $cat.Name + ": " + $dbgJ.Substring(0, [Math]::Min(600, $dbgJ.Length)))
-            } else {
-                Write-Host ("[DEBUG-STOCK] " + $cat.Name + ": nenhum tile encontrado no HTML")
-            }
-        }
 
         $parsed = Parse-Products -Html $html -Category $cat.Name
         if ($parsed.Count -eq 0) { break }
@@ -317,20 +379,22 @@ foreach ($cat in $CATEGORIES) {
     Write-Log ("  OK: " + $catProducts.Count + " produtos | " + $withDiscount + " c/ desconto | max " + $maxDisc + "%")
 }
 
-# 3. Exportar CSV diario em recente\
+# 3. Validar, deduplicar e exportar CSV diario em recente\
 if ($allProducts.Count -gt 0) {
+    $countBeforeDedup = $allProducts.Count
+    $allProducts = Get-UniqueProducts -Products $allProducts
+    if ($allProducts.Count -ne $countBeforeDedup) {
+        Write-Log ("Deduplicados produtos do snapshot diario: " + $countBeforeDedup + " -> " + $allProducts.Count)
+    }
+
+    Test-ScrapeQuality -Products $allProducts -Summary $summary
+
     $allProducts | Export-Csv -Path $CsvDaily -NoTypeInformation -Encoding UTF8 -Delimiter ";"
     Write-Log ("CSV diario: " + $CsvDaily + " (" + $allProducts.Count + " linhas)")
 
-    # Adicionar ao historico acumulado em historico\
-    if (-not (Test-Path $CsvMaster)) {
-        $allProducts | Export-Csv -Path $CsvMaster -NoTypeInformation -Encoding UTF8 -Delimiter ";"
-    } else {
-        $allProducts | ConvertTo-Csv -NoTypeInformation -Delimiter ";" |
-            Select-Object -Skip 1 |
-            Add-Content -Path $CsvMaster -Encoding UTF8
-    }
-    Write-Log ("Historico: " + $CsvMaster)
+    # Atualizar historico acumulado como snapshot do dia, evitando duplicados se correr duas vezes.
+    Save-HistorySnapshot -Products $allProducts
+    Write-Log ("Historico atualizado: " + $CsvMaster)
 } else {
     Write-Log "AVISO: Nenhum produto extraido!" "WARN"
 }

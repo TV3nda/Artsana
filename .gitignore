@@ -2,3 +2,17 @@ data/recente/
 data/arquivo/
 data/logs/
 data/dashboard.html
+data/historico/*.pre_dedupe_*.csv
+.tmp/
+
+# Dados privados locais: nunca publicar no GitHub Pages
+private/
+private_data/
+sellout_private/
+local_private/
+*.xlsx
+*.xls
+*.xlsm
+*.pptx
+*.docx
+*.pdf
