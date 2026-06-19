@@ -3,6 +3,9 @@ data/arquivo/
 data/logs/
 data/dashboard.html
 data/historico/*.pre_dedupe_*.csv
+data/historico/*_backup_*.csv
+data/historico/wells_historico.csv
+scripts/data/
 .tmp/
 
 # Dados privados locais: nunca publicar no GitHub Pages

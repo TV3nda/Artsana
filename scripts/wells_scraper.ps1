@@ -50,7 +50,8 @@ $YearMonth = Get-Date -Format "yyyy-MM"
 $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 $CsvDaily  = Join-Path $DirRecente  ("wells_" + $Date + ".csv")
 $ReportFile= Join-Path $DirRecente  ("relatorio_" + $Date + ".html")
-$CsvMaster = Join-Path $DirHistorico "wells_historico.csv"
+$CsvMaster = Join-Path $DirHistorico "wells_historico.csv"  # mantido para compatibilidade
+$DbPath    = Join-Path $DirHistorico "wells.db"
 $LogFile   = Join-Path $DirLogs     ("scraper_" + $YearMonth + ".log")
 
 # ---------------------------------------------------------------------------
@@ -306,23 +307,61 @@ function Test-ScrapeQuality {
     }
 }
 
-function Save-HistorySnapshot {
+function Save-HistorySnapshotDB {
     param($Products)
 
-    if (-not (Test-Path $CsvMaster)) {
-        $Products | Export-Csv -Path $CsvMaster -NoTypeInformation -Encoding UTF8 -Delimiter ";"
-        return
+    Import-Module PSSQLite -ErrorAction Stop
+
+    # Criar tabela se for a primeira execucao
+    $schemaSql = @"
+CREATE TABLE IF NOT EXISTS historico (
+    Data TEXT NOT NULL, Hora TEXT, Categoria TEXT NOT NULL,
+    ProdID TEXT NOT NULL, Marca TEXT NOT NULL, Produto TEXT NOT NULL,
+    Preco REAL, PVPR REAL, Desconto_Pct INTEGER, Poupanca_Euro REAL,
+    Destaque TEXT, Stock TEXT, URL TEXT,
+    PRIMARY KEY (Data, ProdID)
+);
+CREATE INDEX IF NOT EXISTS idx_data      ON historico(Data);
+CREATE INDEX IF NOT EXISTS idx_marca     ON historico(Marca);
+CREATE INDEX IF NOT EXISTS idx_categoria ON historico(Categoria);
+"@
+    Invoke-SqliteQuery -DataSource $DbPath -Query $schemaSql
+
+    $insertSql = @"
+INSERT OR REPLACE INTO historico
+    (Data,Hora,Categoria,ProdID,Marca,Produto,Preco,PVPR,Desconto_Pct,Poupanca_Euro,Destaque,Stock,URL)
+VALUES
+    (@Data,@Hora,@Categoria,@ProdID,@Marca,@Produto,@Preco,@PVPR,@Desconto_Pct,@Poupanca_Euro,@Destaque,@Stock,@URL)
+"@
+
+    $conn = New-SQLiteConnection -DataSource $DbPath
+    try {
+        Invoke-SqliteQuery -SQLiteConnection $conn -Query "BEGIN TRANSACTION"
+        foreach ($p in $Products) {
+            $params = @{
+                Data          = $p.Data
+                Hora          = $p.Hora
+                Categoria     = $p.Categoria
+                ProdID        = $p.ProdID
+                Marca         = $p.Marca
+                Produto       = $p.Produto
+                Preco         = if ($null -ne $p.Preco)         { [double]$p.Preco         } else { $null }
+                PVPR          = if ($null -ne $p.PVPR)          { [double]$p.PVPR          } else { $null }
+                Desconto_Pct  = if ($null -ne $p.Desconto_Pct)  { [int]$p.Desconto_Pct     } else { $null }
+                Poupanca_Euro = if ($null -ne $p.Poupanca_Euro) { [double]$p.Poupanca_Euro } else { $null }
+                Destaque      = $p.Destaque
+                Stock         = $p.Stock
+                URL           = $p.URL
+            }
+            Invoke-SqliteQuery -SQLiteConnection $conn -Query $insertSql -SqlParameters $params
+        }
+        Invoke-SqliteQuery -SQLiteConnection $conn -Query "COMMIT"
+    } catch {
+        Invoke-SqliteQuery -SQLiteConnection $conn -Query "ROLLBACK"
+        throw
+    } finally {
+        $conn.Close()
     }
-
-    $existing = Import-Csv -Path $CsvMaster -Delimiter ";" -Encoding UTF8
-    $keptRows = @($existing | Where-Object { $_.Data -ne $Date })
-    $combined = @()
-    if ($keptRows.Count -gt 0) { $combined += $keptRows }
-    $combined += @($Products)
-
-    $combined |
-        Sort-Object Data, Categoria, Marca, Produto |
-        Export-Csv -Path $CsvMaster -NoTypeInformation -Encoding UTF8 -Delimiter ";"
 }
 
 # ===========================================================================
@@ -392,9 +431,9 @@ if ($allProducts.Count -gt 0) {
     $allProducts | Export-Csv -Path $CsvDaily -NoTypeInformation -Encoding UTF8 -Delimiter ";"
     Write-Log ("CSV diario: " + $CsvDaily + " (" + $allProducts.Count + " linhas)")
 
-    # Atualizar historico acumulado como snapshot do dia, evitando duplicados se correr duas vezes.
-    Save-HistorySnapshot -Products $allProducts
-    Write-Log ("Historico atualizado: " + $CsvMaster)
+    # Atualizar base de dados historica (INSERT OR REPLACE garante idempotencia)
+    Save-HistorySnapshotDB -Products $allProducts
+    Write-Log ("Base de dados atualizada: " + $DbPath)
 } else {
     Write-Log "AVISO: Nenhum produto extraido!" "WARN"
 }

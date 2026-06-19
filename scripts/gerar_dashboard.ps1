@@ -12,23 +12,24 @@ param(
     [int]$DiasHistorico   = 90    # quantos dias de historico embutir no dashboard
 )
 
-$CsvMaster = Join-Path $DataDir "historico\wells_historico.csv"
+$DbPath    = Join-Path $DataDir "historico\wells.db"
 if (-not $DashboardOut) { $DashboardOut = Join-Path $DataDir "dashboard.html" }
-$Timestamp    = Get-Date -Format "yyyy-MM-dd HH:mm"
+$Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm"
 
-if (-not (Test-Path $CsvMaster)) {
-    Write-Host "Historico nao encontrado: $CsvMaster" -ForegroundColor Red
+if (-not (Test-Path $DbPath)) {
+    Write-Host "Base de dados nao encontrada: $DbPath" -ForegroundColor Red
     exit 1
 }
 
+Import-Module PSSQLite -ErrorAction Stop
+
 # ---------------------------------------------------------------------------
-# 1. Ler CSV e filtrar ultimos N dias
+# 1. Ler base de dados — ultimos N dias
 # ---------------------------------------------------------------------------
 Write-Host "A ler historico..." -ForegroundColor Cyan
-$rows = Import-Csv -Path $CsvMaster -Delimiter ";" -Encoding UTF8
-
 $cutoff = (Get-Date).AddDays(-$DiasHistorico).ToString("yyyy-MM-dd")
-$rows   = $rows | Where-Object { $_.Data -ge $cutoff }
+$rows   = Invoke-SqliteQuery -DataSource $DbPath `
+            -Query "SELECT * FROM historico WHERE Data >= '$cutoff' ORDER BY Data DESC, Categoria, Marca, Produto"
 
 if ($rows.Count -eq 0) {
     Write-Host "Sem dados nos ultimos $DiasHistorico dias." -ForegroundColor Yellow
@@ -61,10 +62,10 @@ foreach ($row in $rows) {
         }
     }
 
-    $preco   = if ($row.Preco)        { [decimal]($row.Preco -replace ',','.') }        else { $null }
-    $pvpr    = if ($row.PVPR -and $row.PVPR -ne "") { [decimal]($row.PVPR -replace ',','.') } else { $null }
-    $desc    = if ($row.Desconto_Pct -and $row.Desconto_Pct -ne "") { [int]$row.Desconto_Pct } else { $null }
-    $poup    = if ($row.Poupanca_Euro -and $row.Poupanca_Euro -ne "") { [decimal]($row.Poupanca_Euro -replace ',','.') } else { $null }
+    $preco   = if ($null -ne $row.Preco)         { [decimal]$row.Preco         } else { $null }
+    $pvpr    = if ($null -ne $row.PVPR)          { [decimal]$row.PVPR          } else { $null }
+    $desc    = if ($null -ne $row.Desconto_Pct)  { [int]$row.Desconto_Pct      } else { $null }
+    $poup    = if ($null -ne $row.Poupanca_Euro) { [decimal]$row.Poupanca_Euro  } else { $null }
 
     $products[$id].history[$row.Data] = @{
         Preco         = $preco
